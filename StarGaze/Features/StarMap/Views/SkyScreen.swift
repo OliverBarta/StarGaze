@@ -187,7 +187,7 @@ struct ConstellationInfoView: View {
                 } else if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 } else {
-                    ProgressView("Asking Gemini…")
+                    SwiftUI.ProgressView("Asking Gemini…")
                 }
 
                 Text("Constellation illustrations by Johan Meuris (Free Art License), via Stellarium.")

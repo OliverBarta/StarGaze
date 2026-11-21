@@ -8,7 +8,7 @@ import SwiftUI
 /// Shown until friends' finds have loaded. A plain spinner, so nothing animates into place.
 struct FriendsLoadingView: View {
     var body: some View {
-        ProgressView()
+        SwiftUI.ProgressView()
             .controlSize(.large)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityLabel("Loading friends' finds")

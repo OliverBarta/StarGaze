@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct CollectionView: View {
+    @Environment(AuthService.self) private var auth
+
     let constellations: [CaptureCardContent]
 
     /// The number of officially recognized constellations.
@@ -57,18 +59,15 @@ struct CollectionView: View {
 
     private var profileHeader: some View {
         HStack(spacing: Metrics.medium) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            ProfilePictureView(url: auth.user?.pictureURL, size: 48)
 
             VStack(alignment: .leading, spacing: Metrics.xSmall) {
-                Text("Joe")
+                Text(auth.user?.displayName ?? "Stargazer")
                     .font(.title2.bold())
                 Text("\(constellations.count) of \(totalConstellations) constellations")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                ProgressView(value: Double(constellations.count), total: Double(totalConstellations))
+                SwiftUI.ProgressView(value: Double(constellations.count), total: Double(totalConstellations))
                     .accessibilityHidden(true)
             }
         }
@@ -84,15 +83,18 @@ struct CollectionView: View {
 
 #Preview("Collection") {
     CollectionView()
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Collection, dark") {
     CollectionView()
+        .environment(AuthService.preview(user: .preview))
         .preferredColorScheme(.dark)
 }
 
 #Preview("Empty") {
     CollectionView(constellations: [])
+        .environment(AuthService.preview(user: .preview))
 }
 
 extension CaptureCardContent {
