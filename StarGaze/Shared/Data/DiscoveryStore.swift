@@ -28,7 +28,7 @@ final class DiscoveryStore {
 
     /// TESTING: play a cutscene on every new discovery (doesn't stamp or complete sets).
     /// Set to false for the real "find 5 from a set" behaviour.
-    static let cutsceneOnEveryFind = true
+    static let cutsceneOnEveryFind = false
     /// TESTING: make this constellation the "runner" in every test cutscene (nil = the one you found).
     static let testHero: String? = nil
 
