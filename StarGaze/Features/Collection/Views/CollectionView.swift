@@ -8,9 +8,21 @@
 import SwiftUI
 
 struct CollectionView: View {
+    
+    
+    
     var body: some View {
-        Text("CollectionView")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ScrollView {
+            VStack {
+                HStack {
+                    Image(systemName: "person.fill")
+                    Text("Joe")
+                }
+                
+                Text("Collection:")
+                    .font( .headline)
+            }
+        }
     }
 }
 
