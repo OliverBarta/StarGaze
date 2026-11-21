@@ -99,13 +99,13 @@ extension CaptureCardContent {
     /// Placeholder captures until the collection has real data.
     static var collectionSamples: [CaptureCardContent] {
         let catalog = AssetConstellationCatalog()
-        let finds: [(name: String, location: String, daysAgo: Int, firstFind: Bool)] = [
-            ("Orion", "Fanshawe Conservation Area", 1, false),
-            ("Camelopardalis", "Pinery Provincial Park", 3, true),
-            ("Cassiopeia", "Komoka Provincial Park", 6, false),
-            ("Draco", "Pinery Provincial Park", 12, true),
-            ("Andromeda", "Fanshawe Conservation Area", 20, false),
-            ("Ursa Major", "Komoka Provincial Park", 34, false),
+        let finds: [(name: String, location: String, daysAgo: Int)] = [
+            ("Orion", "Fanshawe Conservation Area", 1),
+            ("Camelopardalis", "Pinery Provincial Park", 3),
+            ("Cassiopeia", "Komoka Provincial Park", 6),
+            ("Draco", "Pinery Provincial Park", 12),
+            ("Andromeda", "Fanshawe Conservation Area", 20),
+            ("Ursa Major", "Komoka Provincial Park", 34),
         ]
         return finds.map { find in
             let rarity = Rarity.forConstellation(find.name)
@@ -115,8 +115,7 @@ extension CaptureCardContent {
                 date: Calendar.current.date(byAdding: .day, value: -find.daysAgo, to: .now) ?? .now,
                 image: catalog.image(for: find.name),
                 rarity: rarity,
-                points: rarity.points,
-                isFirstFind: find.firstFind
+                points: rarity.points
             )
         }
     }

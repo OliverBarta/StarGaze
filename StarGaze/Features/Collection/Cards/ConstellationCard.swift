@@ -18,11 +18,6 @@ struct ConstellationCard: View {
                 .overlay {
                     CaptureImageView(image: constellation.image)
                 }
-                .overlay(alignment: .topLeading) {
-                    if constellation.isFirstFind {
-                        firstFindBadge
-                    }
-                }
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.imageCornerRadius, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -53,17 +48,6 @@ struct ConstellationCard: View {
         )
         .accessibilityElement(children: .combine)
     }
-
-    private var firstFindBadge: some View {
-        Label("First find", systemImage: "sparkle")
-            .font(.caption2.weight(.semibold))
-            .imageScale(.small)
-            .foregroundStyle(.white)
-            .padding(.horizontal, Metrics.small)
-            .padding(.vertical, Metrics.xSmall)
-            .background(.purple, in: Capsule())
-            .padding(Metrics.small)
-    }
 }
 
 #Preview {
@@ -74,8 +58,7 @@ struct ConstellationCard: View {
             date: .now,
             image: nil,
             rarity: .common,
-            points: 10,
-            isFirstFind: false
+            points: 10
         ))
         ConstellationCard(constellation: CaptureCardContent(
             constellationName: "Camelopardalis",
@@ -83,8 +66,7 @@ struct ConstellationCard: View {
             date: .now.addingTimeInterval(-5 * 86400),
             image: nil,
             rarity: .legendary,
-            points: 100,
-            isFirstFind: true
+            points: 100
         ))
     }
     .padding()
