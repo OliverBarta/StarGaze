@@ -19,7 +19,7 @@ struct SignInView: View {
                     .accessibilityHidden(true)
                 Text("StarGaze")
                     .font(.largeTitle.bold())
-                Text("Find constellations. Beat your friends.")
+                Text("Find constellations. Beat your friends. Help map light pollution.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
