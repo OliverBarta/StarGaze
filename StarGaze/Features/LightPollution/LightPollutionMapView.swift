@@ -6,6 +6,7 @@
 //  layer, so we use MapKit's UIKit map here. It shows:
 //    - the light-pollution overlay (one image per loaded 5° tile)
 //    - the cloud layer for the selected hour (one smooth, soft-edged white image)
+//    - the heatmap of `light_readings` from Supabase (see LightReadingsHeatmap.swift)
 //    - the search circle and the top spots (numbered pins)
 //      and the user's location (blue dot), or a grey pin at the last known
 //      location until GPS answers
@@ -201,6 +202,8 @@ struct LightPollutionMapView: UIViewRepresentable {
     let cloudField: CloudField?
     let showClouds: Bool
     let showLightPollution: Bool
+    var lightReadings: [LightReading] = []
+    var showHeatmap = false
     @Binding var selectedSpot: StargazingSpot?
     /// Called when the user pans/zooms: (visible centre, approx. visible radius in km).
     var onRegionChange: (CLLocationCoordinate2D, Double) -> Void = { _, _ in }
@@ -233,6 +236,7 @@ struct LightPollutionMapView: UIViewRepresentable {
         private var tileOverlays: [TileKey: LightTileOverlay] = [:]
         private var cloudOverlay: CloudFieldOverlay?
         private var shownCloudField: CloudField?
+        private var heatmapOverlay: LightReadingsOverlay?
         private var circle: MKCircle?
         private var circleKey = ""
         private var annotationKey = ""
@@ -244,6 +248,7 @@ struct LightPollutionMapView: UIViewRepresentable {
         func sync(_ map: MKMapView) {
             syncTiles(map)
             syncClouds(map)
+            syncHeatmap(map)
             syncCircle(map)
             syncAnnotations(map)
             syncSelection(map)
@@ -275,6 +280,17 @@ struct LightPollutionMapView: UIViewRepresentable {
                 map.addOverlay(overlay, level: .aboveLabels)
             }
             if let old { map.removeOverlay(old) }      // after adding the new one, so it doesn't flash
+        }
+
+        private func syncHeatmap(_ map: MKMapView) {
+            let wanted = parent.showHeatmap ? parent.lightReadings : []
+            guard wanted != (heatmapOverlay?.readings ?? []) else { return }
+            if let heatmapOverlay { map.removeOverlay(heatmapOverlay) }
+            heatmapOverlay = nil
+            guard !wanted.isEmpty else { return }
+            let overlay = LightReadingsOverlay(readings: wanted)
+            heatmapOverlay = overlay
+            map.addOverlay(overlay, level: .aboveRoads)
         }
 
         private func syncCircle(_ map: MKMapView) {
@@ -349,6 +365,9 @@ struct LightPollutionMapView: UIViewRepresentable {
             }
             if let clouds = overlay as? CloudFieldOverlay {
                 return CloudFieldRenderer(overlay: clouds)
+            }
+            if let heatmap = overlay as? LightReadingsOverlay {
+                return LightReadingsRenderer(overlay: heatmap)
             }
             return MKOverlayRenderer(overlay: overlay)
         }
