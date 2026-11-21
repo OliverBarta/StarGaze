@@ -22,7 +22,7 @@ struct ContentView: View {
                     StarView()
                 }
                 Tab("Light Pollution", systemImage: "lightbulb", value: AppTab.lightPollution) {
-                    LightPollutionView()
+                    StargazingSpotsView()
                 }
                 Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
                     FriendsView()
