@@ -15,7 +15,7 @@ struct SupabaseFriendsDataSource: FriendsDataSource {
                 id: item.id,
                 friend: Friend(
                     id: item.userID,
-                    name: item.displayName ?? item.username,
+                    name: item.displayName.map(\.strippingEmailDomain).flatMap { $0.isEmpty ? nil : $0 } ?? item.username,
                     avatarURL: item.avatarURL.flatMap(URL.init(string:))
                 ),
                 constellationName: item.constellationName,
