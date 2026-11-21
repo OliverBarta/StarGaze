@@ -36,7 +36,7 @@ xcodebuild -project StarGaze.xcodeproj -scheme StarGaze \
 xcrun simctl list devices available
 ```
 
-**The build needs `StarGaze/Config/Secrets.swift`**, which is gitignored. If it's missing, copy `Secrets.example.swift` (repo root) there; it defines `Secrets.geminiAPIKey`.
+**The build needs `StarGaze/Config/Secrets.swift`**, which is gitignored. If it's missing, copy `Secrets.example.swift` (repo root) there; it defines `Secrets.geminiAPIKey`, `supabaseURL` and `supabaseKey`.
 
 There is no test target and no linter, so `xcodebuild test` won't work until a test target is added in Xcode (File > New > Target > Unit Testing Bundle). After that, run a single test with `-only-testing:<TestTarget>/<TestClass>/<testMethod>`. Views have `#Preview`s, often with several states (e.g. `FriendsView` empty / loading / error via `MockFriendsDataSource` options).
 
@@ -63,6 +63,8 @@ Code is organized as `App/` (entry and root navigation), `Features/<Feature>/` (
 
 **Light pollution / spots** (`Features/LightPollution/`). `LightPollutionService` loads 5°×5° sky-brightness tiles: bundled `LightTiles/*.bin` first, then a disk cache, then an optional remote URL (`remoteBaseURL`, nil by default). The tile binary format is documented at the top of that file and must match the offline `make_light_tiles.py` preprocessing script, which is not in this repo. Keep the `Bortle` thresholds in sync with that script too. `TonightConditionsService` calculates sun and moon positions on the device and fetches cloud cover from Open-Meteo (no API key, 30-minute cache), then scores spots for tonight. `StargazingSpotsView` and `LightPollutionMapView` (MapKit) show the results, and `SpotDetailView` shows details for one spot.
 
-**Friends** (`Features/Friends/`). MVVM: `FriendsViewModel` reads from the `FriendsDataSource` protocol. Only `MockFriendsDataSource` exists so far, and it's the default in `FriendsView.init`. A real backend should be a new conformer, with no view changes. `FriendStanding.ranked` counts each constellation once per friend per week, so data sources should return captures without removing duplicates.
+**Friends** (`Features/Friends/`). MVVM: `FriendsViewModel` reads from the `FriendsDataSource` protocol. `ContentView` passes `SupabaseFriendsDataSource`; `MockFriendsDataSource` is the default in `FriendsView.init` and drives the previews. `FriendStanding.ranked` counts each constellation once per friend per week, so data sources should return captures without removing duplicates.
+
+**Supabase** (`Shared/Services/SupabaseService.swift`, schema in `supabase/schema.sql`). Plain `URLSession` calls to PostgREST, no SDK. Auth is Auth0 via Supabase Third-Party Auth: `AuthService` requests the `https://stargaze-api` audience so the access token is a JWT, and RLS reads the Auth0 `sub` (text, not a UUID) through `requesting_user_id()`. `ContentView.startSharing()` creates the profile (auto-generated username), re-uploads all local discoveries (deduped by a unique constraint), and hooks `DiscoveryStore.onDiscover` to upload new finds. Follows are one-way; the `feed` view returns captures from followed users.
 
 **Shared cards.** `CaptureCardContent` + `CaptureCardView` render both Collection cards and friend-feed captures (`FriendCapture+CaptureCardContent.swift` adapts friend captures). Rarity and points come from `Rarity.forConstellation`. Images are resolved by name through the `ConstellationCatalog` protocol (`AssetConstellationCatalog`).

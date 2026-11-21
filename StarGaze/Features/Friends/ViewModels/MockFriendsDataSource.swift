@@ -17,13 +17,20 @@ struct MockFriendsDataSource: FriendsDataSource {
         }
         return captures
     }
+
+    func follow(username: String) async throws {
+        try await Task.sleep(for: delay)
+        if shouldFail {
+            throw FollowError.userNotFound
+        }
+    }
 }
 
 extension MockFriendsDataSource {
-    static let maya = Friend(id: UUID(), name: "Maya Chen")
-    static let jordan = Friend(id: UUID(), name: "Jordan Okafor")
-    static let priya = Friend(id: UUID(), name: "Priya Sharma")
-    static let liam = Friend(id: UUID(), name: "Liam Tremblay")
+    static let maya = Friend(id: "mock|maya", name: "Maya Chen")
+    static let jordan = Friend(id: "mock|jordan", name: "Jordan Okafor")
+    static let priya = Friend(id: "mock|priya", name: "Priya Sharma")
+    static let liam = Friend(id: "mock|liam", name: "Liam Tremblay")
 
     /// Dates are relative to now, so the 7-day leaderboard always has data.
     static var sampleCaptures: [FriendCapture] {

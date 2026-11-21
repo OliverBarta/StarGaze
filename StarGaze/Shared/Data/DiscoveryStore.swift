@@ -32,6 +32,9 @@ final class DiscoveryStore {
     /// TESTING: make this constellation the "runner" in every test cutscene (nil = the one you found).
     static let testHero: String? = nil
 
+    /// Called after each new discovery is saved (ContentView uses it to share the find).
+    @ObservationIgnored var onDiscover: ((Discovery) -> Void)?
+
     @ObservationIgnored private let saveKey = "StarGaze.discoveries.v1"
     @ObservationIgnored private let setsKey = "StarGaze.completedSets.v1"
 
@@ -61,6 +64,7 @@ final class DiscoveryStore {
             pendingCompletions.insert(Completion(set: set, names: ["Auriga"], isTest: true), at: before)
         }
         save()
+        if let discovery = discoveries[name] { onDiscover?(discovery) }
         return true
     }
 

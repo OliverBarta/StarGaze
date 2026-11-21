@@ -41,4 +41,5 @@ struct RootView: View {
 #Preview("Signed in") {
     RootView()
         .environment(AuthService.preview(user: .preview))
+        .environment(SupabaseService.preview())
 }

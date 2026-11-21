@@ -14,6 +14,8 @@ final class FriendsViewModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     private(set) var hasLoaded = false
+    /// Set when adding a friend fails; the view shows it as an alert.
+    var addFriendError: String?
 
     private let dataSource: any FriendsDataSource
     private let catalog: any ConstellationCatalog
@@ -45,9 +47,21 @@ final class FriendsViewModel {
     }
 
     func addFriend(username: String) async {
-        guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        // TODO: Send the friend request to the backend here (e.g. add a method to FriendsDataSource),
-        // surface failures through errorMessage, and call refresh() on success.
+        var name = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if name.hasPrefix("@") { name.removeFirst() }
+        guard !name.isEmpty else { return }
+        do {
+            try await dataSource.follow(username: name)
+            await refresh()
+        } catch FollowError.userNotFound {
+            addFriendError = "Nobody on StarGaze has the username \(name)."
+        } catch FollowError.cannotFollowSelf {
+            addFriendError = "That's your own username."
+        } catch FollowError.notSignedUp {
+            addFriendError = "Your profile isn't set up yet. Check your connection and try again."
+        } catch {
+            addFriendError = "Couldn't add \(name). Check your connection and try again."
+        }
     }
 
     private func fetch() async {

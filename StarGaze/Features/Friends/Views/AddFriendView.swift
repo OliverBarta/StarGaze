@@ -28,7 +28,7 @@ struct AddFriendView: View {
                         .focused($isUsernameFocused)
                         .onSubmit(add)
                 } footer: {
-                    Text("Enter your friend's StarGaze username.")
+                    Text("Enter your friend's StarGaze username. You'll find yours on your profile.")
                 }
             }
             .navigationTitle("Add Friend")
