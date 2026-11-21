@@ -22,6 +22,10 @@ struct SkyScreen: View {
     @State private var namedStars: [PlacedNamedStar] = []
     @State private var version = 0
     @State private var infoTarget: InfoTarget?
+    @State private var captureCount = 0
+
+    /// The ring is full, so the capture button is enabled.
+    private var canCapture: Bool { dwellName != nil && dwellProgress >= 1 }
 
     // Simulators have no camera or compass, so they get the virtual sky.
     private let arSupported = ARWorldTrackingConfiguration.isSupported
@@ -45,6 +49,7 @@ struct SkyScreen: View {
                     dwellName = name
                     dwellProgress = progress
                 },
+                captureCount: captureCount,
                 onDiscover: { c in
                     if store.discover(c.name, place: location.placeName) {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -88,10 +93,12 @@ struct SkyScreen: View {
                         .background(.ultraThinMaterial, in: Capsule())
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                captureButton
             }
             .padding()
             .animation(.spring(response: 0.4), value: toast)
             .animation(.easeOut(duration: 0.2), value: dwellName)
+            .animation(.easeOut(duration: 0.2), value: canCapture)
 
             #if DEBUG
             // Testing helper: wipe discoveries so you can replay the cutscenes.
@@ -137,6 +144,25 @@ struct SkyScreen: View {
         }
     }
 
+    /// White shutter-style button; enabled once the ring around a constellation is full.
+    private var captureButton: some View {
+        Button {
+            captureCount += 1
+        } label: {
+            ZStack {
+                Circle().stroke(.white, lineWidth: 4)
+                Circle().fill(.white).padding(7)
+            }
+            .frame(width: 72, height: 72)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canCapture)
+        .opacity(canCapture ? 1 : 0.35)
+        .accessibilityLabel(canCapture ? "Capture \(dwellName ?? "")" : "Capture")
+        .padding(.top, 8)
+    }
+
     private func showToast(_ text: String) {
         toast = text
         Task {
@@ -157,7 +183,7 @@ struct SkyScreen: View {
         VStack(spacing: 2) {
             Text(arSupported ? "Point your phone at the sky" : "Drag to look around the sky")
                 .font(.subheadline.weight(.semibold))
-            Text("Hold on a constellation to discover it · tap to learn more"
+            Text("Hold on a constellation, then capture it · tap to learn more"
                  + (location.usingFallback ? " · sky over London, ON" : ""))
                 .font(.caption)
                 .foregroundStyle(.secondary)

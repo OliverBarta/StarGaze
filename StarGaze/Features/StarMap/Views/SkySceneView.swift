@@ -18,8 +18,11 @@ struct SkySceneView: UIViewRepresentable {
     var hidden = false
     let onTap: (PlacedConstellation) -> Void
     /// Name being held on and how far along (0...1), or nil when nothing is.
+    /// At 1 the constellation is ready to capture.
     let onDwell: (String?, Double) -> Void
-    /// Fired once when you've held on a constellation long enough.
+    /// Bump to capture the constellation whose ring is full (the capture button).
+    var captureCount = 0
+    /// Fired when a ready constellation is captured.
     let onDiscover: (PlacedConstellation) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -67,6 +70,11 @@ struct SkySceneView: UIViewRepresentable {
         c.discovered = discovered
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
+        if captureCount != c.lastCaptureCount {
+            c.lastCaptureCount = captureCount
+            // after this update pass, since capturing changes SwiftUI state
+            DispatchQueue.main.async { c.capture() }
+        }
     }
 
     static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) {
@@ -91,9 +99,11 @@ struct SkySceneView: UIViewRepresentable {
         var onDwell: (String?, Double) -> Void = { _, _ in }
         var onDiscover: (PlacedConstellation) -> Void = { _ in }
         var discovered: Set<String> = []
+        var lastCaptureCount = 0
         weak var view: SCNView?
 
-        // Discovering: hold within `dwellAngle` of a constellation for `dwellNeeded` seconds.
+        // Discovering: hold within `dwellAngle` of a constellation for `dwellNeeded` seconds,
+        // then press capture.
         private var dwellName: String?
         private var dwellTime: Double = 0
         private var lastReported: Double = -1
@@ -286,21 +296,24 @@ struct SkySceneView: UIViewRepresentable {
             }
             dwellTime += dt
             let progress = min(1, dwellTime / dwellNeeded)
-            if abs(progress - lastReported) >= 0.04 || progress >= 1 {
+            if abs(progress - lastReported) >= 0.04 || (progress >= 1 && lastReported < 1) {
                 lastReported = progress
                 onDwell(target.placed.name, progress)
             }
+        }
 
-            if progress >= 1 {
-                discovered.insert(target.placed.name)
-                refreshDiscoveredColors()
-                celebrate(at: target.center)
-                dwellName = nil
-                dwellTime = 0
-                lastReported = -1
-                onDwell(nil, 0)
-                onDiscover(target.placed)
-            }
+        /// Captures the constellation being held on, if its ring is full.
+        func capture() {
+            guard let name = dwellName, dwellTime >= dwellNeeded,
+                  let target = drawn.first(where: { $0.placed.name == name }) else { return }
+            discovered.insert(name)
+            refreshDiscoveredColors()
+            celebrate(at: target.center)
+            dwellName = nil
+            dwellTime = 0
+            lastReported = -1
+            onDwell(nil, 0)
+            onDiscover(target.placed)
         }
 
         /// Expanding golden ring where a constellation was just discovered.
