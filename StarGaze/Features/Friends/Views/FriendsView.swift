@@ -27,6 +27,9 @@ struct FriendsView: View {
                             isShowingAddFriend = true
                         }
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ProfileButton()
+                    }
                 }
                 .sheet(isPresented: $isShowingAddFriend) {
                     AddFriendView { username in
@@ -90,26 +93,32 @@ struct FriendsView: View {
 
 #Preview("Feed") {
     FriendsView()
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Feed, dark") {
     FriendsView()
         .preferredColorScheme(.dark)
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Feed, large text") {
     FriendsView()
         .environment(\.dynamicTypeSize, .accessibility2)
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Empty") {
     FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource(captures: [])))
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Loading") {
     FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource(delay: .seconds(3600))))
+        .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Error") {
     FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource(shouldFail: true)))
+        .environment(AuthService.preview(user: .preview))
 }

@@ -68,4 +68,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environment(AuthService.preview(user: .preview))
 }
