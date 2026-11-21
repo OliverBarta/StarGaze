@@ -5,35 +5,70 @@
 //  Created by Oliver Barta on 2026-11-20.
 //
 
-import SwiftData
 import SwiftUI
 
+/// A compact capture for the two-column collection grid.
 struct ConstellationCard: View {
-    let constellation: ConstellationImageName
+    let constellation: CaptureCardContent
 
     var body: some View {
-        VStack(spacing: 8) {
-            Color.black
+        VStack(alignment: .leading, spacing: Metrics.small) {
+            Color.clear
                 .aspectRatio(1, contentMode: .fit)
                 .overlay {
-                    Image(constellation.image)
-                        .resizable()
-                        .scaledToFill()
+                    CaptureImageView(image: constellation.image)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.imageCornerRadius, style: .continuous))
 
-            Text(constellation.name)
-                .font(.headline)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(constellation.constellationName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(constellation.locationName)
+                    .lineLimit(1)
+                Text(constellation.date, format: .dateTime.month(.abbreviated).day().year())
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            HStack {
+                RarityLabel(rarity: constellation.rarity)
+                Spacer(minLength: Metrics.xSmall)
+                Text("+\(constellation.points)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(12)
-        .aspectRatio(1, contentMode: .fit)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        .padding(Metrics.small)
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: Metrics.cardCornerRadius, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 
 #Preview {
-    ConstellationCard(constellation: ConstellationImageName(name: "Orion", image: "orion"))
-        .frame(width: 180)
+    HStack(alignment: .top, spacing: Metrics.medium) {
+        ConstellationCard(constellation: CaptureCardContent(
+            constellationName: "Orion",
+            locationName: "Fanshawe Conservation Area",
+            date: .now,
+            image: nil,
+            rarity: .common,
+            points: 10
+        ))
+        ConstellationCard(constellation: CaptureCardContent(
+            constellationName: "Camelopardalis",
+            locationName: "Pinery Provincial Park",
+            date: .now.addingTimeInterval(-5 * 86400),
+            image: nil,
+            rarity: .legendary,
+            points: 100
+        ))
+    }
+    .padding()
+    .background(Color(.systemGroupedBackground))
 }

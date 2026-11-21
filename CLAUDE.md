@@ -12,7 +12,7 @@ StarGaze is a SwiftUI iOS app (iPhone + iPad) for stargazers. No third-party dep
   - `LightPollutionMapView` wraps UIKit's `MKMapView` (SwiftUI `Map` can't draw custom image overlays) and draws light-pollution tiles, the cloud layer (the 9 × 9 forecast grid upscaled into one smooth, round-edged image by `CloudImage`), the search circle and spot pins.
   - `LightPollutionService` loads the light-pollution tiles. `findDarkSpots` picks the 3 best land spots within the search radius (`StargazingConfig.searchRadiusKm`, 25 km), ranked by darkness × cloud at the slider's hour, at least 10 km apart. The spots are re-picked when the forecast arrives and when the slider moves.
   - `TonightConditionsService` fetches the cloud forecast from Open-Meteo (free, no key) on a 9 × 9 grid with a 30-minute cache, and scores spots by darkness, cloud, Moon and twilight.
-  - `StargazingModels.swift` has `LocationProvider`: GPS via `CLLocationUpdate.liveUpdates()`, last fix saved in `UserDefaults` and used at launch until GPS answers.
+  - `StargazingModels.swift` has `SpotLocationProvider`: GPS via `CLLocationUpdate.liveUpdates()`, last fix saved in `UserDefaults` and used at launch until GPS answers.
   - Light-pollution data is bundled in `StargazingSpots/LightTiles/`: ~1,130 `.bin` tiles plus `index.json`, derived from the Falchi et al. 2016 atlas. The tile format is documented at the top of `LightPollutionService.swift`. A byte of 0 means water.
 - **Star map** (`StarGaze/Features/StarMap/`): pick a sky photo; `GeminiService` asks Google Gemini to identify constellations, and `ConstellationView` draws them over the photo.
 - **Collection** (`StarGaze/Features/Collection/`): constellation cards. **Friends** and **Light Pollution** (`Features/`) are placeholders.
@@ -40,9 +40,10 @@ There is no test target, so `xcodebuild test` won't work until one is added in X
 
 ## Project configuration that affects code
 
-- **Deployment target is iOS 26.1** (the app target overrides the project-level 26.2). Use current SwiftUI/Observation APIs freely; no `#available` checks needed for anything older.
+- **Deployment target is iOS 18.0** (the app target overrides the project-level 26.2). Anything newer, like iOS 26 MapKit APIs, needs an `#available` check.
 - **`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`** and **`SWIFT_APPROACHABLE_CONCURRENCY = YES`**: every type is implicitly `@MainActor` unless marked otherwise. Background work has to opt out explicitly (`nonisolated`, `@concurrent`, or a separate actor).
 - **Swift language mode is 5.0** (not 6), so strict-concurrency diagnostics show up as warnings, not errors.
 - **The project uses file-system-synchronized groups** (`objectVersion = 77`). Any file created under `StarGaze/` is picked up by the target automatically. Don't hand-edit `project.pbxproj` to register new source files.
 - **Location permission text** comes from the `INFOPLIST_KEY_NSLocationWhenInUseUsageDescription` build setting (the Info.plist is generated). Add other `NS…UsageDescription` keys the same way.
+- **All features share one module**, so type names must be unique across folders. Stargazing Spots uses `SpotLocationProvider` and `SpotAstronomy` because StarMap already has `LocationProvider` and `Astronomy`.
 - Bundle ID: `com.oliver.StarGaze`.

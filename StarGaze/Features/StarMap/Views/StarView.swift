@@ -9,7 +9,7 @@ import SwiftUI
 
 struct StarView: View {
     var body: some View {
-        ConstellationView()
+        SkyScreen()
     }
 }
 

@@ -1,44 +1,33 @@
 import Foundation
-import UIKit
 
-/// Sends a star photo to Gemini and gets back the constellations it sees.
+/// Asks Gemini to describe a constellation. Answers are cached so each
+/// constellation only costs one request (free tier: 500 requests/day).
 final class GeminiService {
     private let model = "gemini-3.5-flash-lite"
+    private static var cache: [String: String] = [:]
 
-    /// Returns Gemini's JSON answer as a String (decoded into GeminiResult by the view).
-    func identifyConstellations(in image: UIImage) async throws -> String {
-        guard let jpeg = image.jpegData(compressionQuality: 0.8) else {
-            throw URLError(.cannotDecodeContentData)
-        }
+    func describe(constellation name: String) async throws -> String {
+        if let cached = Self.cache[name] { return cached }
 
+        let prompt = """
+        You're the guide in a stargazing app. Tell a curious student about the \
+        constellation \(name) in under 120 words, as short plain-text paragraphs \
+        (no markdown): the myth or story behind it, its brightest or most famous \
+        stars, when it's best seen from Canada, and one fun fact.
+        """
+        let text = try await generateText(prompt: prompt)
+        Self.cache[name] = text
+        return text
+    }
+
+    private func generateText(prompt: String) async throws -> String {
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Secrets.geminiAPIKey, forHTTPHeaderField: "x-goog-api-key")
 
-        let prompt = """
-        Identify the constellations visible in this night-sky photo.
-        Reply with JSON only, in this shape:
-        {"constellations":[{"name":"Orion",
-          "stars":[{"name":"Betelgeuse","x":0.42,"y":0.31}],
-          "lines":[[0,1]],
-          "fact":"one short fun fact"}]}
-        x and y are positions from 0 to 1 across the image width and height.
-        "lines" lists pairs of star indexes to connect.
-        If you see no constellations, return {"constellations":[]}.
-        """
-
-        let body: [String: Any] = [
-            "contents": [[
-                "parts": [
-                    ["text": prompt],
-                    ["inline_data": ["mime_type": "image/jpeg",
-                                     "data": jpeg.base64EncodedString()]]
-                ]
-            ]],
-            "generationConfig": ["response_mime_type": "application/json"]
-        ]
+        let body: [String: Any] = ["contents": [["parts": [["text": prompt]]]]]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -53,6 +42,6 @@ final class GeminiService {
         let candidates = json?["candidates"] as? [[String: Any]]
         let content = candidates?.first?["content"] as? [String: Any]
         let parts = content?["parts"] as? [[String: Any]]
-        return parts?.first?["text"] as? String ?? "{\"constellations\":[]}"
+        return parts?.first?["text"] as? String ?? "No description available."
     }
 }

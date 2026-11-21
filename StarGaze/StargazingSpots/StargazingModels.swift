@@ -3,7 +3,7 @@
 //  Stargazing Spots feature
 //
 //  Small shared pieces used by the views:
-//    - LocationProvider: GPS, starting from the last saved location
+//    - SpotLocationProvider: GPS, starting from the last saved location
 //    - Bortle colours for SwiftUI (legend, badges)
 //    - Driving: driving distance/time (online) + "open in Apple Maps"
 //
@@ -22,7 +22,7 @@ import Observation
 
 @MainActor
 @Observable
-final class LocationProvider {
+final class SpotLocationProvider {
 
     enum Status: Equatable {
         case idle, locating, ready, denied, failed
@@ -189,8 +189,12 @@ enum Driving {
     }
 
     private static func mapItem(_ c: CLLocationCoordinate2D, name: String?) -> MKMapItem {
-        let item = MKMapItem(location: CLLocation(latitude: c.latitude, longitude: c.longitude),
-                             address: nil)
+        let item: MKMapItem
+        if #available(iOS 26, *) {
+            item = MKMapItem(location: CLLocation(latitude: c.latitude, longitude: c.longitude), address: nil)
+        } else {
+            item = MKMapItem(placemark: MKPlacemark(coordinate: c))
+        }
         item.name = name
         return item
     }

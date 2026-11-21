@@ -17,7 +17,7 @@ import Foundation
 import CoreLocation
 import Observation
 
-// MARK: - Astronomy (offline)
+// MARK: - SpotAstronomy (offline)
 
 nonisolated struct SkyAstronomy: Sendable, Equatable {
     let sunAltitudeDeg: Double
@@ -44,7 +44,7 @@ nonisolated struct SkyAstronomy: Sendable, Equatable {
     }
 }
 
-nonisolated enum Astronomy {
+nonisolated enum SpotAstronomy {
     private static let rad = Double.pi / 180
     private static let obliquity = rad * 23.4397
 
@@ -313,7 +313,7 @@ final class TonightConditionsService {
     }
 
     func sky(at c: CLLocationCoordinate2D, time: Date) -> SkyAstronomy {
-        Astronomy.sky(at: time, latitude: c.latitude, longitude: c.longitude)
+        SpotAstronomy.sky(at: time, latitude: c.latitude, longitude: c.longitude)
     }
 
     func score(for spot: StargazingSpot, at time: Date) -> TonightScore {

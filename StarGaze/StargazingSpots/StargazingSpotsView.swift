@@ -32,7 +32,7 @@ enum StargazingConfig {
 struct StargazingSpotsView: View {
     @State private var lightService = LightPollutionService(remoteBaseURL: StargazingConfig.tilesBaseURL)
     @State private var tonight = TonightConditionsService()
-    @State private var location = LocationProvider()
+    @State private var location = SpotLocationProvider()
 
     @State private var spots: [StargazingSpot] = []
     @State private var selectedSpot: StargazingSpot?
