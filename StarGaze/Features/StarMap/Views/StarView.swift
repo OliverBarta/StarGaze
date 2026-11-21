@@ -15,4 +15,5 @@ struct StarView: View {
 
 #Preview {
     StarView()
+        .environment(DiscoveryStore())
 }

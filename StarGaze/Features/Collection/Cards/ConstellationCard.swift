@@ -19,6 +19,9 @@ struct ConstellationCard: View {
                     CaptureImageView(image: constellation.image)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.imageCornerRadius, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    stampRow
+                }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(constellation.constellationName)
@@ -47,6 +50,19 @@ struct ConstellationCard: View {
             in: RoundedRectangle(cornerRadius: Metrics.cardCornerRadius, style: .continuous)
         )
         .accessibilityElement(children: .combine)
+    }
+
+    /// Set stamps sit just over the image's top-right corner.
+    @ViewBuilder
+    private var stampRow: some View {
+        if !constellation.stamps.isEmpty {
+            HStack(spacing: -10) {
+                ForEach(constellation.stamps) { set in
+                    SetStampView(set: set, size: 40, slam: constellation.stampIsFresh)
+                }
+            }
+            .offset(x: 6, y: -6)
+        }
     }
 }
 

@@ -55,6 +55,8 @@ struct PlacedConstellation: Identifiable {
     let center: SIMD3<Float>        // average direction of its stars
     let centerAlt: Double
     let centerAz: Double
+    let art: ArtEntry?
+    let artGrid: [SIMD3<Float>]     // illustration mesh corners on the sky
 
     var isAboveHorizon: Bool { centerAlt > 0 }
 
@@ -92,9 +94,21 @@ enum SkyModel {
             var az = atan2(Double(center.x), Double(-center.z)) * 180 / .pi
             if az < 0 { az += 360 }
 
+            // illustration mesh: each corner's RA/Dec -> where it is right now
+            let art = SkyArt.entries[constellation.id]
+            var artGrid: [SIMD3<Float>] = []
+            if let art {
+                for g in 0..<art.radec.count {
+                    let pos = Astronomy.altAz(raDeg: art.radec[g][0], decDeg: art.radec[g][1],
+                                              latDeg: latDeg, lonDeg: lonDeg, date: date)
+                    artGrid.append(Astronomy.arDirection(altDeg: pos.alt, azDeg: pos.az))
+                }
+            }
+
             result.append(PlacedConstellation(id: constellation.id, name: constellation.name,
                                               rank: constellation.rank, segments: segments,
-                                              center: center, centerAlt: alt, centerAz: az))
+                                              center: center, centerAlt: alt, centerAz: az,
+                                              art: art, artGrid: artGrid))
         }
         return result
     }

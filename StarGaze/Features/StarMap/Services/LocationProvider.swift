@@ -11,6 +11,11 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
     var latitude: Double = LocationProvider.fallback.latitude
     var longitude: Double = LocationProvider.fallback.longitude
     var usingFallback = true
+    /// Human-readable place for collection cards, e.g. "London, Ontario".
+    var placeName = "London, Ontario"
+
+    @ObservationIgnored private let geocoder = CLGeocoder()
+    @ObservationIgnored private var didGeocode = false
 
     @ObservationIgnored private let manager = CLLocationManager()
 
@@ -31,6 +36,22 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
             self.latitude = c.latitude
             self.longitude = c.longitude
             self.usingFallback = false
+            self.lookUpPlaceName(for: CLLocation(latitude: c.latitude, longitude: c.longitude))
+        }
+    }
+
+    private func lookUpPlaceName(for location: CLLocation) {
+        guard !didGeocode else { return }
+        didGeocode = true
+        geocoder.reverseGeocodeLocation(location) { placemarks, _ in
+            guard let p = placemarks?.first else { return }
+            // Prefer a named place (park, landmark), then the city
+            let name = [p.areasOfInterest?.first ?? p.locality, p.administrativeArea]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+            Task { @MainActor in
+                if !name.isEmpty { self.placeName = name }
+            }
         }
     }
 

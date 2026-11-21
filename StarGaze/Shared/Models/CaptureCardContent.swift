@@ -13,4 +13,8 @@ struct CaptureCardContent {
     var image: Image?
     var rarity: Rarity
     var points: Int
+    /// Completed-set stamps earned by this constellation (empty = none).
+    var stamps: [ConstellationSet] = []
+    /// True right after a set cutscene, so the stamp slams in.
+    var stampIsFresh: Bool = false
 }
