@@ -21,11 +21,11 @@ struct SocialProfile: Codable, Hashable {
 }
 
 enum SupabaseError: Error {
-    case http(status: Int, code: String?)
+    case http(status: Int, code: String?, message: String?)
 
     /// A Postgres unique-constraint or primary-key violation (PostgREST answers 409).
     var isConflict: Bool {
-        if case let .http(status, code) = self { return status == 409 || code == "23505" }
+        if case let .http(status, code, _) = self { return status == 409 || code == "23505" }
         return false
     }
 }
@@ -195,7 +195,8 @@ final class SupabaseService {
         var request = URLRequest(url: components.url!)
         request.httpMethod = method
         request.setValue(apiKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization")
+        let token = try await accessToken()
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let prefer {
             request.setValue(prefer, forHTTPHeaderField: "Prefer")
         }
@@ -207,9 +208,12 @@ final class SupabaseService {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
-            struct ErrorBody: Decodable { let code: String? }
-            let code = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.code
-            throw SupabaseError.http(status: status, code: code)
+            struct ErrorBody: Decodable { let code: String?; let message: String? }
+            let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
+            #if DEBUG
+            if status == 401 { print("Supabase rejected the Auth0 token. \(Self.describe(token: token))") }
+            #endif
+            throw SupabaseError.http(status: status, code: body?.code, message: body?.message)
         }
         return data
     }
@@ -237,6 +241,21 @@ final class SupabaseService {
 
 #if DEBUG
 extension SupabaseService {
+    /// The header and a few claims of a JWT, for debugging auth setup. Never prints the signature.
+    static func describe(token: String) -> String {
+        let parts = token.split(separator: ".").map(String.init)
+        guard parts.count == 3 else { return "Not a signed JWT (\(parts.count) parts); sign out and back in." }
+        func json(_ part: String) -> [String: Any] {
+            var base64 = part.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+            base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+            guard let data = Data(base64Encoded: base64),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+            return object
+        }
+        let header = json(parts[0]), claims = json(parts[1])
+        return "alg=\(header["alg"] ?? "-") kid=\(header["kid"] ?? "-") iss=\(claims["iss"] ?? "-") aud=\(claims["aud"] ?? "-") role=\(claims["role"] ?? "-")"
+    }
+
     /// A service for previews. It never reaches the network.
     static func preview(profile: SocialProfile? = SocialProfile(id: "auth0|preview", username: "alex")) -> SupabaseService {
         let service = SupabaseService(baseURL: URL(string: "https://preview.invalid")!, apiKey: "") {

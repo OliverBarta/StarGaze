@@ -123,3 +123,13 @@ from public.captures c
 join public.profiles p on p.id = c.user_id
 where c.user_id <> public.requesting_user_id()
 order by c.captured_at desc;
+
+-- ── Privileges ──────────────────────────────────────────────────────────────
+-- New Supabase projects don't expose tables to the API roles automatically.
+-- Only signed-in users get access; RLS above limits them to the right rows.
+grant usage on schema public to authenticated;
+grant execute on function public.requesting_user_id() to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, delete on public.follows to authenticated;
+grant select, insert, delete on public.captures to authenticated;
+grant select on public.feed to authenticated;
