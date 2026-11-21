@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-lup" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#52c322" stop-opacity=".30"/><stop offset=".7" stop-color="#52c322" stop-opacity=".08"/><stop offset="1" stop-color="#52c322" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-lup"><stop offset="0" stop-color="#cefbbb" stop-opacity=".9"/><stop offset="1" stop-color="#91f268" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-lup" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cefbbb"/><stop offset="1" stop-color="#91f268"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-lup)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#91f268" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#91f268" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="417.1" cy="953.9" r="7" fill="#cefbbb"/>
+<path d="M334.4 172.0 L421.5 197.2 L557.3 264.9 L557.2 426.8 L708.7 526.9 L798.0 695.9 L599.5 852.0 L568.9 693.9 L545.4 575.6 L461.2 445.8 L278.9 353.2 L226.0 298.9" fill="none" stroke="url(#line-lup)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M557.2 426.8 L461.2 445.8" fill="none" stroke="url(#line-lup)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="798.0" cy="695.9" r="30.4" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="798.0" cy="695.9" r="11.7" fill="#ffffff"/>
+<circle cx="708.7" cy="526.9" r="28.2" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="708.7" cy="526.9" r="10.8" fill="#ffffff"/>
+<circle cx="461.2" cy="445.8" r="27.5" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="461.2" cy="445.8" r="10.6" fill="#ffffff"/>
+<circle cx="557.2" cy="426.8" r="24.9" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="557.2" cy="426.8" r="9.6" fill="#ffffff"/>
+<circle cx="545.4" cy="575.6" r="24.0" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="545.4" cy="575.6" r="9.2" fill="#ffffff"/>
+<circle cx="599.5" cy="852.0" r="23.8" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="599.5" cy="852.0" r="9.2" fill="#ffffff"/>
+<circle cx="278.9" cy="353.2" r="23.7" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="278.9" cy="353.2" r="9.1" fill="#ffffff"/>
+<circle cx="557.3" cy="264.9" r="22.9" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="557.3" cy="264.9" r="8.8" fill="#ffffff"/>
+<circle cx="334.4" cy="172.0" r="20.5" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="334.4" cy="172.0" r="7.9" fill="#ffffff"/>
+<circle cx="226.0" cy="298.9" r="19.0" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="226.0" cy="298.9" r="7.3" fill="#ffffff"/>
+<circle cx="568.9" cy="693.9" r="18.7" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="568.9" cy="693.9" r="7.2" fill="#ffffff"/>
+<circle cx="421.5" cy="197.2" r="16.3" fill="url(#glow-lup)" opacity=".55"/>
+<circle cx="421.5" cy="197.2" r="6.3" fill="#ffffff"/>
+<path d="M798.0 637.9 Q798.0 695.9 856.0 695.9 Q798.0 695.9 798.0 753.9 Q798.0 695.9 740.0 695.9 Q798.0 695.9 798.0 637.9Z" fill="#ffffff" opacity=".95"/>
+</svg>

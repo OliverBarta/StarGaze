@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-cvn" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#22c372" stop-opacity=".30"/><stop offset=".7" stop-color="#22c372" stop-opacity=".08"/><stop offset="1" stop-color="#22c372" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-cvn"><stop offset="0" stop-color="#bbfbdb" stop-opacity=".9"/><stop offset="1" stop-color="#68f2ad" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-cvn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bbfbdb"/><stop offset="1" stop-color="#68f2ad"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-cvn)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#68f2ad" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#68f2ad" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="120.9" cy="738.6" r="7" fill="#bbfbdb"/>
+<path d="M172.0 754.4 L852.0 269.6" fill="none" stroke="url(#line-cvn)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="852.0" cy="269.6" r="18.8" fill="url(#glow-cvn)" opacity=".55"/>
+<circle cx="852.0" cy="269.6" r="7.2" fill="#ffffff"/>
+<circle cx="172.0" cy="754.4" r="14.3" fill="url(#glow-cvn)" opacity=".55"/>
+<circle cx="172.0" cy="754.4" r="5.5" fill="#ffffff"/>
+<path d="M852.0 211.6 Q852.0 269.6 910.0 269.6 Q852.0 269.6 852.0 327.6 Q852.0 269.6 794.0 269.6 Q852.0 269.6 852.0 211.6Z" fill="#ffffff" opacity=".95"/>
+</svg>

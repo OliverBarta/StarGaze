@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-dra" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#22c35d" stop-opacity=".30"/><stop offset=".7" stop-color="#22c35d" stop-opacity=".08"/><stop offset="1" stop-color="#22c35d" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-dra"><stop offset="0" stop-color="#bbfbd2" stop-opacity=".9"/><stop offset="1" stop-color="#68f29b" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-dra" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bbfbd2"/><stop offset="1" stop-color="#68f29b"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-dra)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#68f29b" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#68f29b" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="154.6" cy="788.8" r="7" fill="#bbfbd2"/>
+<path d="M299.9 749.1 L271.2 852.0 L352.7 847.5 L353.0 790.6 L299.9 749.1 L202.1 491.2 L312.2 460.8 L421.5 588.3 L524.3 662.4 L589.0 707.9 L676.0 670.8 L780.2 480.8 L802.1 274.7 L845.9 172.0" fill="none" stroke="url(#line-dra)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M312.2 460.8 L320.1 434.6" fill="none" stroke="url(#line-dra)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M202.1 491.2 L178.1 413.5" fill="none" stroke="url(#line-dra)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="271.2" cy="852.0" r="30.8" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="271.2" cy="852.0" r="11.8" fill="#ffffff"/>
+<circle cx="524.3" cy="662.4" r="27.9" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="524.3" cy="662.4" r="10.7" fill="#ffffff"/>
+<circle cx="352.7" cy="847.5" r="27.5" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="352.7" cy="847.5" r="10.6" fill="#ffffff"/>
+<circle cx="202.1" cy="491.2" r="25.8" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="202.1" cy="491.2" r="9.9" fill="#ffffff"/>
+<circle cx="421.5" cy="588.3" r="25.2" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="421.5" cy="588.3" r="9.7" fill="#ffffff"/>
+<circle cx="676.0" cy="670.8" r="24.5" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="676.0" cy="670.8" r="9.4" fill="#ffffff"/>
+<circle cx="320.1" cy="434.6" r="23.0" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="320.1" cy="434.6" r="8.8" fill="#ffffff"/>
+<circle cx="780.2" cy="480.8" r="22.3" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="780.2" cy="480.8" r="8.6" fill="#ffffff"/>
+<circle cx="299.9" cy="749.1" r="21.9" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="299.9" cy="749.1" r="8.4" fill="#ffffff"/>
+<circle cx="845.9" cy="172.0" r="21.4" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="845.9" cy="172.0" r="8.2" fill="#ffffff"/>
+<circle cx="178.1" cy="413.5" r="21.2" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="178.1" cy="413.5" r="8.2" fill="#ffffff"/>
+<circle cx="802.1" cy="274.7" r="21.2" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="802.1" cy="274.7" r="8.1" fill="#ffffff"/>
+<circle cx="589.0" cy="707.9" r="20.2" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="589.0" cy="707.9" r="7.8" fill="#ffffff"/>
+<circle cx="312.2" cy="460.8" r="19.0" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="312.2" cy="460.8" r="7.3" fill="#ffffff"/>
+<circle cx="353.0" cy="790.6" r="15.1" fill="url(#glow-dra)" opacity=".55"/>
+<circle cx="353.0" cy="790.6" r="5.8" fill="#ffffff"/>
+<path d="M271.2 794.0 Q271.2 852.0 329.2 852.0 Q271.2 852.0 271.2 910.0 Q271.2 852.0 213.2 852.0 Q271.2 852.0 271.2 794.0Z" fill="#ffffff" opacity=".95"/>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-cet" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#22c33c" stop-opacity=".30"/><stop offset=".7" stop-color="#22c33c" stop-opacity=".08"/><stop offset="1" stop-color="#22c33c" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-cet"><stop offset="0" stop-color="#bbfbc5" stop-opacity=".9"/><stop offset="1" stop-color="#68f27e" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-cet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bbfbc5"/><stop offset="1" stop-color="#68f27e"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-cet)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#68f27e" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#68f27e" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="222.4" cy="859.0" r="7" fill="#bbfbc5"/>
+<path d="M251.5 387.7 L282.6 348.3 L314.9 300.4 L245.4 272.0 L183.5 291.7 L172.0 373.2 L251.5 387.7 L267.5 436.2 L351.4 490.9 L466.2 613.2 L495.3 707.3 L740.6 752.0 L852.0 598.2 L643.0 613.7 L579.7 578.6 L466.2 613.2" fill="none" stroke="url(#line-cet)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="740.6" cy="752.0" r="32.0" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="740.6" cy="752.0" r="12.3" fill="#ffffff"/>
+<circle cx="172.0" cy="373.2" r="29.0" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="172.0" cy="373.2" r="11.2" fill="#ffffff"/>
+<circle cx="643.0" cy="613.7" r="23.5" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="643.0" cy="613.7" r="9.0" fill="#ffffff"/>
+<circle cx="251.5" cy="387.7" r="23.4" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="251.5" cy="387.7" r="9.0" fill="#ffffff"/>
+<circle cx="495.3" cy="707.3" r="23.3" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="495.3" cy="707.3" r="9.0" fill="#ffffff"/>
+<circle cx="852.0" cy="598.2" r="22.9" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="852.0" cy="598.2" r="8.8" fill="#ffffff"/>
+<circle cx="579.7" cy="578.6" r="22.7" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="579.7" cy="578.6" r="8.7" fill="#ffffff"/>
+<circle cx="466.2" cy="613.2" r="21.8" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="466.2" cy="613.2" r="8.4" fill="#ffffff"/>
+<circle cx="267.5" cy="436.2" r="19.8" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="267.5" cy="436.2" r="7.6" fill="#ffffff"/>
+<circle cx="245.4" cy="272.0" r="18.7" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="245.4" cy="272.0" r="7.2" fill="#ffffff"/>
+<circle cx="314.9" cy="300.4" r="18.5" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="314.9" cy="300.4" r="7.1" fill="#ffffff"/>
+<circle cx="183.5" cy="291.7" r="16.0" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="183.5" cy="291.7" r="6.2" fill="#ffffff"/>
+<circle cx="282.6" cy="348.3" r="15.1" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="282.6" cy="348.3" r="5.8" fill="#ffffff"/>
+<circle cx="351.4" cy="490.9" r="14.3" fill="url(#glow-cet)" opacity=".55"/>
+<circle cx="351.4" cy="490.9" r="5.5" fill="#ffffff"/>
+<path d="M740.6 694.0 Q740.6 752.0 798.6 752.0 Q740.6 752.0 740.6 810.0 Q740.6 752.0 682.6 752.0 Q740.6 752.0 740.6 694.0Z" fill="#ffffff" opacity=".95"/>
+</svg>

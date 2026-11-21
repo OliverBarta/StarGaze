@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-tuc" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#c35c22" stop-opacity=".30"/><stop offset=".7" stop-color="#c35c22" stop-opacity=".08"/><stop offset="1" stop-color="#c35c22" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-tuc"><stop offset="0" stop-color="#fbd2bb" stop-opacity=".9"/><stop offset="1" stop-color="#f29a68" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-tuc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbd2bb"/><stop offset="1" stop-color="#f29a68"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-tuc)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#f29a68" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#f29a68" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="931.5" cy="680.4" r="7" fill="#fbd2bb"/>
+<path d="M852.0 467.2 L534.8 343.4 L172.0 603.5 L247.7 669.7 L344.5 680.6 L765.7 659.6 L852.0 467.2" fill="none" stroke="url(#line-tuc)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="852.0" cy="467.2" r="27.0" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="852.0" cy="467.2" r="10.4" fill="#ffffff"/>
+<circle cx="534.8" cy="343.4" r="20.3" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="534.8" cy="343.4" r="7.8" fill="#ffffff"/>
+<circle cx="247.7" cy="669.7" r="18.9" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="247.7" cy="669.7" r="7.3" fill="#ffffff"/>
+<circle cx="172.0" cy="603.5" r="18.1" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="172.0" cy="603.5" r="7.0" fill="#ffffff"/>
+<circle cx="344.5" cy="680.6" r="17.3" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="344.5" cy="680.6" r="6.7" fill="#ffffff"/>
+<circle cx="765.7" cy="659.6" r="17.2" fill="url(#glow-tuc)" opacity=".55"/>
+<circle cx="765.7" cy="659.6" r="6.6" fill="#ffffff"/>
+<path d="M852.0 409.2 Q852.0 467.2 910.0 467.2 Q852.0 467.2 852.0 525.2 Q852.0 467.2 794.0 467.2 Q852.0 467.2 852.0 409.2Z" fill="#ffffff" opacity=".95"/>
+</svg>

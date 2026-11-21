@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-hor" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#5722c3" stop-opacity=".30"/><stop offset=".7" stop-color="#5722c3" stop-opacity=".08"/><stop offset="1" stop-color="#5722c3" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-hor"><stop offset="0" stop-color="#d0bbfb" stop-opacity=".9"/><stop offset="1" stop-color="#9568f2" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-hor" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d0bbfb"/><stop offset="1" stop-color="#9568f2"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-hor)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#9568f2" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#9568f2" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="431.1" cy="67.3" r="7" fill="#d0bbfb"/>
+<path d="M228.7 172.0 L773.9 413.7 L795.3 473.9 L773.0 539.1 L661.0 706.7 L677.6 852.0" fill="none" stroke="url(#line-hor)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="228.7" cy="172.0" r="21.2" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="228.7" cy="172.0" r="8.1" fill="#ffffff"/>
+<circle cx="677.6" cy="852.0" r="14.4" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="677.6" cy="852.0" r="5.5" fill="#ffffff"/>
+<circle cx="661.0" cy="706.7" r="14.3" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="661.0" cy="706.7" r="5.5" fill="#ffffff"/>
+<circle cx="773.0" cy="539.1" r="14.3" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="773.0" cy="539.1" r="5.5" fill="#ffffff"/>
+<circle cx="795.3" cy="473.9" r="14.3" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="795.3" cy="473.9" r="5.5" fill="#ffffff"/>
+<circle cx="773.9" cy="413.7" r="14.3" fill="url(#glow-hor)" opacity=".55"/>
+<circle cx="773.9" cy="413.7" r="5.5" fill="#ffffff"/>
+<path d="M228.7 114.0 Q228.7 172.0 286.7 172.0 Q228.7 172.0 228.7 230.0 Q228.7 172.0 170.7 172.0 Q228.7 172.0 228.7 114.0Z" fill="#ffffff" opacity=".95"/>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-pyx" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#c33b22" stop-opacity=".30"/><stop offset=".7" stop-color="#c33b22" stop-opacity=".08"/><stop offset="1" stop-color="#c33b22" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-pyx"><stop offset="0" stop-color="#fbc5bb" stop-opacity=".9"/><stop offset="1" stop-color="#f27d68" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-pyx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbc5bb"/><stop offset="1" stop-color="#f27d68"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-pyx)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#f27d68" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#f27d68" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="957.8" cy="586.4" r="7" fill="#fbc5bb"/>
+<path d="M769.5 852.0 L385.1 582.8 L344.0 468.0 L254.5 172.0" fill="none" stroke="url(#line-pyx)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="769.5" cy="852.0" r="31.0" fill="url(#glow-pyx)" opacity=".55"/>
+<circle cx="769.5" cy="852.0" r="11.9" fill="#ffffff"/>
+<circle cx="344.0" cy="468.0" r="22.2" fill="url(#glow-pyx)" opacity=".55"/>
+<circle cx="344.0" cy="468.0" r="8.5" fill="#ffffff"/>
+<circle cx="385.1" cy="582.8" r="20.5" fill="url(#glow-pyx)" opacity=".55"/>
+<circle cx="385.1" cy="582.8" r="7.9" fill="#ffffff"/>
+<circle cx="254.5" cy="172.0" r="20.2" fill="url(#glow-pyx)" opacity=".55"/>
+<circle cx="254.5" cy="172.0" r="7.8" fill="#ffffff"/>
+<path d="M769.5 794.0 Q769.5 852.0 827.5 852.0 Q769.5 852.0 769.5 910.0 Q769.5 852.0 711.5 852.0 Q769.5 852.0 769.5 794.0Z" fill="#ffffff" opacity=".95"/>
+</svg>

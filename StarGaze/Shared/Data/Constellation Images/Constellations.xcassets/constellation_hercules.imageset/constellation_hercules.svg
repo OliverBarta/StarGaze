@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-her" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#c38622" stop-opacity=".30"/><stop offset=".7" stop-color="#c38622" stop-opacity=".08"/><stop offset="1" stop-color="#c38622" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-her"><stop offset="0" stop-color="#fbe3bb" stop-opacity=".9"/><stop offset="1" stop-color="#f2be68" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-her" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe3bb"/><stop offset="1" stop-color="#f2be68"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-her)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#f2be68" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#f2be68" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="872.0" cy="785.3" r="7" fill="#fbe3bb"/>
+<path d="M727.1 744.7 L682.5 697.8 L619.8 487.7 L606.6 334.6 L637.7 258.7 L684.6 172.0 L728.9 196.1 L798.6 238.6" fill="none" stroke="url(#line-her)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M619.8 487.7 L535.1 503.5" fill="none" stroke="url(#line-her)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M606.6 334.6 L473.5 378.9" fill="none" stroke="url(#line-her)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M301.9 353.8 L437.7 370.0 L473.5 378.9 L535.1 503.5 L464.3 630.0 L320.3 559.2 L271.9 520.8 L225.4 524.6" fill="none" stroke="url(#line-her)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M459.5 852.0 L682.5 697.8" fill="none" stroke="url(#line-her)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="682.5" cy="697.8" r="27.6" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="682.5" cy="697.8" r="10.6" fill="#ffffff"/>
+<circle cx="459.5" cy="852.0" r="27.6" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="459.5" cy="852.0" r="10.6" fill="#ffffff"/>
+<circle cx="619.8" cy="487.7" r="27.4" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="619.8" cy="487.7" r="10.5" fill="#ffffff"/>
+<circle cx="464.3" cy="630.0" r="25.5" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="464.3" cy="630.0" r="9.8" fill="#ffffff"/>
+<circle cx="473.5" cy="378.9" r="25.3" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="473.5" cy="378.9" r="9.7" fill="#ffffff"/>
+<circle cx="320.3" cy="559.2" r="23.7" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="320.3" cy="559.2" r="9.1" fill="#ffffff"/>
+<circle cx="606.6" cy="334.6" r="23.4" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="606.6" cy="334.6" r="9.0" fill="#ffffff"/>
+<circle cx="271.9" cy="520.8" r="22.1" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="271.9" cy="520.8" r="8.5" fill="#ffffff"/>
+<circle cx="727.1" cy="744.7" r="21.8" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="727.1" cy="744.7" r="8.4" fill="#ffffff"/>
+<circle cx="225.4" cy="524.6" r="21.2" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="225.4" cy="524.6" r="8.2" fill="#ffffff"/>
+<circle cx="301.9" cy="353.8" r="21.1" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="301.9" cy="353.8" r="8.1" fill="#ffffff"/>
+<circle cx="684.6" cy="172.0" r="20.8" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="684.6" cy="172.0" r="8.0" fill="#ffffff"/>
+<circle cx="535.1" cy="503.5" r="20.8" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="535.1" cy="503.5" r="8.0" fill="#ffffff"/>
+<circle cx="437.7" cy="370.0" r="19.4" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="437.7" cy="370.0" r="7.5" fill="#ffffff"/>
+<circle cx="637.7" cy="258.7" r="19.1" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="637.7" cy="258.7" r="7.3" fill="#ffffff"/>
+<circle cx="728.9" cy="196.1" r="18.9" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="728.9" cy="196.1" r="7.3" fill="#ffffff"/>
+<circle cx="798.6" cy="238.6" r="16.7" fill="url(#glow-her)" opacity=".55"/>
+<circle cx="798.6" cy="238.6" r="6.4" fill="#ffffff"/>
+<path d="M682.5 639.8 Q682.5 697.8 740.5 697.8 Q682.5 697.8 682.5 755.8 Q682.5 697.8 624.5 697.8 Q682.5 697.8 682.5 639.8Z" fill="#ffffff" opacity=".95"/>
+</svg>

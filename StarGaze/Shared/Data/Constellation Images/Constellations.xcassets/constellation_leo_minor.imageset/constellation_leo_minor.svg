@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-lmi" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#22c37f" stop-opacity=".30"/><stop offset=".7" stop-color="#22c37f" stop-opacity=".08"/><stop offset="1" stop-color="#22c37f" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-lmi"><stop offset="0" stop-color="#bbfbe0" stop-opacity=".9"/><stop offset="1" stop-color="#68f2b8" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-lmi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bbfbe0"/><stop offset="1" stop-color="#68f2b8"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-lmi)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#68f2b8" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#68f2b8" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="103.5" cy="705.6" r="7" fill="#bbfbe0"/>
+<path d="M571.2 515.0 L410.5 576.0 L172.0 544.3 L396.9 452.7 L571.2 515.0 L852.0 448.0" fill="none" stroke="url(#line-lmi)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="172.0" cy="544.3" r="21.5" fill="url(#glow-lmi)" opacity=".55"/>
+<circle cx="172.0" cy="544.3" r="8.3" fill="#ffffff"/>
+<circle cx="396.9" cy="452.7" r="19.1" fill="url(#glow-lmi)" opacity=".55"/>
+<circle cx="396.9" cy="452.7" r="7.3" fill="#ffffff"/>
+<circle cx="571.2" cy="515.0" r="17.3" fill="url(#glow-lmi)" opacity=".55"/>
+<circle cx="571.2" cy="515.0" r="6.7" fill="#ffffff"/>
+<circle cx="852.0" cy="448.0" r="17.1" fill="url(#glow-lmi)" opacity=".55"/>
+<circle cx="852.0" cy="448.0" r="6.6" fill="#ffffff"/>
+<circle cx="410.5" cy="576.0" r="16.0" fill="url(#glow-lmi)" opacity=".55"/>
+<circle cx="410.5" cy="576.0" r="6.1" fill="#ffffff"/>
+<path d="M172.0 486.3 Q172.0 544.3 230.0 544.3 Q172.0 544.3 172.0 602.3 Q172.0 544.3 114.0 544.3 Q172.0 544.3 172.0 486.3Z" fill="#ffffff" opacity=".95"/>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<radialGradient id="halo-cam" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#b5c322" stop-opacity=".30"/><stop offset=".7" stop-color="#b5c322" stop-opacity=".08"/><stop offset="1" stop-color="#b5c322" stop-opacity="0"/></radialGradient>
+<radialGradient id="glow-cam"><stop offset="0" stop-color="#f6fbbb" stop-opacity=".9"/><stop offset="1" stop-color="#e7f268" stop-opacity="0"/></radialGradient>
+<linearGradient id="line-cam" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6fbbb"/><stop offset="1" stop-color="#e7f268"/></linearGradient>
+</defs>
+<circle cx="512.0" cy="512.0" r="492" fill="url(#halo-cam)"/>
+<circle cx="512.0" cy="512.0" r="452" fill="none" stroke="#e7f268" stroke-opacity=".35" stroke-width="3"/>
+<circle cx="512.0" cy="512.0" r="434" fill="none" stroke="#e7f268" stroke-opacity=".18" stroke-width="2" stroke-dasharray="2 14" stroke-linecap="round"/>
+<circle cx="703.6" cy="921.4" r="7" fill="#f6fbbb"/>
+<path d="M447.7 852.0 L434.5 670.2 L470.0 513.2 L609.9 365.4 L647.6 517.1 L748.3 645.8" fill="none" stroke="url(#line-cam)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M470.0 513.2 L275.7 393.3 L295.8 172.0" fill="none" stroke="url(#line-cam)" stroke-opacity=".75" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="434.5" cy="670.2" r="20.1" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="434.5" cy="670.2" r="7.7" fill="#ffffff"/>
+<circle cx="748.3" cy="645.8" r="19.0" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="748.3" cy="645.8" r="7.3" fill="#ffffff"/>
+<circle cx="470.0" cy="513.2" r="18.7" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="470.0" cy="513.2" r="7.2" fill="#ffffff"/>
+<circle cx="647.6" cy="517.1" r="17.9" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="647.6" cy="517.1" r="6.9" fill="#ffffff"/>
+<circle cx="447.7" cy="852.0" r="17.7" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="447.7" cy="852.0" r="6.8" fill="#ffffff"/>
+<circle cx="295.8" cy="172.0" r="17.0" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="295.8" cy="172.0" r="6.5" fill="#ffffff"/>
+<circle cx="609.9" cy="365.4" r="16.8" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="609.9" cy="365.4" r="6.4" fill="#ffffff"/>
+<circle cx="275.7" cy="393.3" r="15.7" fill="url(#glow-cam)" opacity=".55"/>
+<circle cx="275.7" cy="393.3" r="6.1" fill="#ffffff"/>
+<path d="M434.5 612.2 Q434.5 670.2 492.5 670.2 Q434.5 670.2 434.5 728.2 Q434.5 670.2 376.5 670.2 Q434.5 670.2 434.5 612.2Z" fill="#ffffff" opacity=".95"/>
+</svg>
