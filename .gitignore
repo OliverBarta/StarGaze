@@ -47,3 +47,6 @@ playground.xcworkspace
 *.xcconfig.local
 .env
 GoogleService-Info.plist
+
+# Gemini API key (share privately, never commit)
+StarGaze/Config/Secrets.swift
