@@ -9,7 +9,7 @@ struct InfoTarget: Identifiable {
 }
 
 /// Main Stars tab: hold the phone up and see the constellations over the camera.
-/// Tap one to learn about it. In the simulator you get a virtual sky to drag around.
+/// Tap one to learn about it.
 struct SkyScreen: View {
     @Environment(DiscoveryStore.self) private var store
     @State private var location = LocationProvider()
@@ -30,7 +30,8 @@ struct SkyScreen: View {
         return !target.isCollected && target.progress >= 1
     }
 
-    // Simulators have no camera or compass, so they get the virtual sky.
+    // Simulators have no camera or compass, so they get a virtual sky instead
+    // (a silent developer fallback; the UI always assumes a phone pointed at the sky).
     private let arSupported = ARWorldTrackingConfiguration.isSupported
 
     var body: some View {
@@ -152,7 +153,7 @@ struct SkyScreen: View {
     private var hint: some View {
         HStack(spacing: 10) {
             VStack(spacing: 2) {
-                Text(arSupported ? "Point your phone at the sky" : "Drag to look around the sky")
+                Text("Point your phone at the sky")
                     .font(.subheadline.weight(.semibold))
                 Text("Hold on a constellation, then capture it · tap to learn more"
                      + (location.usingFallback ? " · sky over London, ON" : ""))

@@ -1,29 +1,12 @@
 import UIKit
 
-/// Talks to the Gemini REST API. Two jobs:
-/// - `describe(constellation:)`: a short description for the info sheet (cached per constellation).
-/// - `analyzeSky(_:)`: quality control for sky readings. It never identifies constellations;
-///   identification is sensor-based.
+/// Talks to the Gemini REST API. Its only job is `analyzeSky(_:)`, the quality check for sky
+/// readings. It never identifies constellations; identification is sensor-based.
 final class GeminiService {
     private let model = "gemini-3.5-flash-lite"
-    private static var cache: [String: String] = [:]
 
     /// Photos are downscaled to this before upload.
     nonisolated static let uploadMaxDimension: CGFloat = 1024
-
-    func describe(constellation name: String) async throws -> String {
-        if let cached = Self.cache[name] { return cached }
-
-        let prompt = """
-        You're the guide in a stargazing app. Tell a curious student about the \
-        constellation \(name) in under 120 words, as short plain-text paragraphs \
-        (no markdown): the myth or story behind it, its brightest or most famous \
-        stars, when it's best seen from Canada, and one fun fact.
-        """
-        let text = try await generate(parts: [["text": prompt]]) ?? "No description available."
-        Self.cache[name] = text
-        return text
-    }
 
     /// Checks whether a photo is a usable night-sky measurement. Gemini must answer with JSON
     /// matching `SkyAnalysis`, enforced by a response schema and validated again here.
@@ -55,17 +38,14 @@ final class GeminiService {
     }
 
     /// Sends one request and returns the first candidate's text (nil if Gemini returned none).
-    private func generate(parts: [[String: Any]], generationConfig: [String: Any]? = nil) async throws -> String? {
+    private func generate(parts: [[String: Any]], generationConfig: [String: Any]) async throws -> String? {
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Secrets.geminiAPIKey, forHTTPHeaderField: "x-goog-api-key")
 
-        var body: [String: Any] = ["contents": [["parts": parts]]]
-        if let generationConfig {
-            body["generationConfig"] = generationConfig
-        }
+        let body: [String: Any] = ["contents": [["parts": parts]], "generationConfig": generationConfig]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let data: Data

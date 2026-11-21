@@ -3,8 +3,8 @@ import ARKit
 import SceneKit
 
 /// Draws tonight's constellations as glowing, twinkling stars joined by soft light strands.
-/// - useAR = true  (real iPhone): drawn over the live camera, follows where you point.
-/// - useAR = false (simulator):   a dark "virtual sky" you drag around to look.
+/// - useAR = true (real iPhone): drawn over the live camera, follows where you point.
+/// - useAR = false (simulator): a dark "virtual sky" you can drag, as a developer fallback.
 /// Whatever you point at lights up and shows its name; the rest fades back.
 /// Tapping a star or line reports which constellation was tapped.
 struct SkySceneView: UIViewRepresentable {
@@ -48,6 +48,7 @@ struct SkySceneView: UIViewRepresentable {
             view.pointOfView = c.virtualCamera
             view.scene?.rootNode.addChildNode(c.virtualCamera)
             c.addGround()
+            // Developer fallback for the simulator only: drag to look around. No on-screen hint.
             view.addGestureRecognizer(UIPanGestureRecognizer(target: c, action: #selector(Coordinator.handlePan(_:))))
         }
 
@@ -624,7 +625,8 @@ struct SkySceneView: UIViewRepresentable {
             if let best { onTap(best) }
         }
 
-        /// Virtual sky only: drag to look around.
+        /// Virtual sky only (simulator, no AR): drag to look around. A silent developer fallback
+        /// so the sky can be tested without a device; the UI never mentions it.
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             let t = gesture.translation(in: gesture.view)
             gesture.setTranslation(.zero, in: gesture.view)
