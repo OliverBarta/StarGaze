@@ -143,16 +143,6 @@ final class DiscoveryStore {
         return result
     }
 
-    #if DEBUG
-    func resetAll() {
-        discoveries = [:]
-        completedSetIDs = []
-        pendingCompletions = []
-        freshStamps = []
-        save()
-    }
-    #endif
-
     // MARK: Saving
 
     private func save() {

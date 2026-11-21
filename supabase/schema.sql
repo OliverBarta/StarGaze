@@ -133,3 +133,35 @@ grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, delete on public.follows to authenticated;
 grant select, insert, delete on public.captures to authenticated;
 grant select on public.feed to authenticated;
+
+-- ── Light readings ──────────────────────────────────────────────────────────
+-- A strength value at a point. Postgres has no tuple type, so coordinates use the
+-- built-in `point` (x, y); PostgREST sends it as the string "(x,y)".
+create table public.light_readings (
+  id          bigint generated always as identity primary key,
+  coordinates point not null,
+  strength    double precision not null
+);
+
+alter table public.light_readings enable row level security;
+
+create policy "Light readings are readable by anyone"
+  on public.light_readings for select to anon, authenticated
+  using (true);
+
+create policy "Signed-in users add light readings"
+  on public.light_readings for insert to authenticated
+  with check (true);
+
+create policy "Signed-in users update light readings"
+  on public.light_readings for update to authenticated
+  using (true)
+  with check (true);
+
+create policy "Signed-in users delete light readings"
+  on public.light_readings for delete to authenticated
+  using (true);
+
+grant usage on schema public to anon;
+grant select on public.light_readings to anon;
+grant select, insert, update, delete on public.light_readings to authenticated;

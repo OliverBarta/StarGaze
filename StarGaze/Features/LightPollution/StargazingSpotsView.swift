@@ -30,6 +30,7 @@ enum StargazingConfig {
 // MARK: - Entry view
 
 struct StargazingSpotsView: View {
+    @Environment(SupabaseService.self) private var supabase
     @State private var lightService = LightPollutionService(remoteBaseURL: StargazingConfig.tilesBaseURL)
     @State private var tonight = TonightConditionsService()
     @State private var location = SpotsLocationProvider()
@@ -48,6 +49,10 @@ struct StargazingSpotsView: View {
 
     @State private var showClouds = true
     @State private var showLightPollution = true
+    @State private var showHeatmap = false
+    @State private var lightReadings: [LightReading] = []
+    @State private var isLoadingReadings = false
+    @State private var readingsError: String?
 
     private var selectedTime: Date {
         guard !hours.isEmpty else { return .now }
@@ -77,6 +82,8 @@ struct StargazingSpotsView: View {
                     cloudField: tonight.cloudField(at: selectedTime),
                     showClouds: showClouds,
                     showLightPollution: showLightPollution,
+                    lightReadings: lightReadings,
+                    showHeatmap: showHeatmap,
                     selectedSpot: $selectedSpot,
                     onRegionChange: { centre, visibleKm in
                         Task { await lightService.loadTiles(around: centre, radiusKm: min(visibleKm, 300)) }
@@ -96,6 +103,9 @@ struct StargazingSpotsView: View {
                     .presentationDragIndicator(.visible)
             }
             .task(id: searchKey) { await runSearch() }
+            .task(id: showHeatmap) {
+                if showHeatmap && lightReadings.isEmpty { await loadReadings() }
+            }
             .onChange(of: selectedTime) {
                 // clouds differ by hour, so the best spots can too
                 pickSpots()
@@ -157,6 +167,20 @@ struct StargazingSpotsView: View {
         }
     }
 
+    /// Fetches the heatmap's readings from Supabase the first time the layer is turned on.
+    private func loadReadings() async {
+        guard !isLoadingReadings else { return }
+        isLoadingReadings = true
+        defer { isLoadingReadings = false }
+        do {
+            lightReadings = try await supabase.fetchLightReadings()
+            readingsError = lightReadings.isEmpty ? "No light readings yet." : nil
+        } catch is CancellationError {
+        } catch {
+            readingsError = "Couldn't load light readings: \(error.localizedDescription)"
+        }
+    }
+
     private func loadDrive(to spot: StargazingSpot, from centre: CLLocationCoordinate2D) async {
         guard drives[spot.id] == nil, !loadingDrives.contains(spot.id) else { return }
         loadingDrives.insert(spot.id)
@@ -188,6 +212,10 @@ struct StargazingSpotsView: View {
                 ? "Location is off. Allow it in Settings to find spots near you."
                 : "Waiting for your location…"
         }
+        if showHeatmap {
+            if isLoadingReadings { return "Loading light readings…" }
+            if let readingsError { return readingsError }
+        }
         if isSearching && spots.isEmpty { return "Finding dark spots…" }
         if spots.isEmpty && !lightService.missingTiles.isEmpty {
             return "No light-pollution data here yet. Connect to the internet once to download it."
@@ -213,6 +241,9 @@ struct StargazingSpotsView: View {
             }
             if showLightPollution {
                 legend
+            }
+            if showHeatmap {
+                heatmapLegend
             }
         }
         .padding()
@@ -260,6 +291,20 @@ struct StargazingSpotsView: View {
         }
     }
 
+    private var heatmapLegend: some View {
+        HStack(spacing: 8) {
+            Text("Readings: dark")
+            LinearGradient(
+                colors: LightReadingsRenderer.ramp.map { Color(red: $0.0, green: $0.1, blue: $0.2) },
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(height: 10)
+            .clipShape(Capsule())
+            Text("bright")
+        }
+        .font(.caption2)
+    }
+
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
@@ -267,6 +312,7 @@ struct StargazingSpotsView: View {
         ToolbarItemGroup(placement: .topBarLeading) {
             layerButton("Clouds", systemImage: "cloud.fill", isOn: $showClouds)
             layerButton("Light pollution", systemImage: "lightbulb.fill", isOn: $showLightPollution)
+            layerButton("Light readings heatmap", systemImage: "flame.fill", isOn: $showHeatmap)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -320,4 +366,5 @@ struct StargazingSpotsView: View {
 
 #Preview {
     StargazingSpotsView()
+        .environment(SupabaseService.preview())
 }

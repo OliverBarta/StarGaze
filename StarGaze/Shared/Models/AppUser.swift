@@ -15,7 +15,17 @@ struct AppUser: Identifiable, Hashable {
     var pictureURL: URL?
 
     var displayName: String {
-        name ?? nickname ?? email ?? "Stargazer"
+        [name, nickname, email]
+            .compactMap { $0?.strippingEmailDomain }
+            .first { !$0.isEmpty } ?? "Stargazer"
+    }
+}
+
+extension String {
+    /// Drops everything from the first "@" on, so an email used as a name
+    /// doesn't show its address.
+    var strippingEmailDomain: String {
+        String(prefix { $0 != "@" }).trimmingCharacters(in: .whitespaces)
     }
 }
 

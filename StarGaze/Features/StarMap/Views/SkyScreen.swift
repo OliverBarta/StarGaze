@@ -21,6 +21,14 @@ struct SkyScreen: View {
     @State private var namedStars: [PlacedNamedStar] = []
     @State private var version = 0
     @State private var infoTarget: InfoTarget?
+    @State private var captureCount = 0
+    @State private var showHint = true
+
+    /// The ring is full, so the capture button is enabled.
+    private var canCapture: Bool {
+        guard let target else { return false }
+        return !target.isCollected && target.progress >= 1
+    }
 
     // Simulators have no camera or compass, so they get the virtual sky.
     private let arSupported = ARWorldTrackingConfiguration.isSupported
@@ -41,6 +49,7 @@ struct SkyScreen: View {
                     infoTarget = InfoTarget(id: c.id, name: c.name, directionText: c.directionText)
                 },
                 onTarget: { target = $0 },
+                captureCount: captureCount,
                 onDiscover: { c in
                     if store.discover(c.name, place: location.placeName) {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -58,7 +67,9 @@ struct SkyScreen: View {
             }
 
             VStack {
-                hint
+                if showHint {
+                    hint.transition(.move(edge: .top).combined(with: .opacity))
+                }
                 Spacer()
                 if let toast {
                     Text(toast)
@@ -69,28 +80,13 @@ struct SkyScreen: View {
                         .background(.ultraThinMaterial, in: Capsule())
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                captureButton
             }
             .padding()
             .animation(.spring(response: 0.4), value: toast)
+            .animation(.easeOut(duration: 0.25), value: showHint)
             .animation(.easeOut(duration: 0.2), value: target?.name)
-
-            #if DEBUG
-            // Testing helper: wipe discoveries so you can replay the cutscenes.
-            VStack {
-                HStack {
-                    Spacer()
-                    Button {
-                        store.resetAll()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                }
-                Spacer()
-            }
-            .padding()
-            #endif
+            .animation(.easeOut(duration: 0.2), value: canCapture)
         }
         .task {
             location.start()
@@ -118,6 +114,25 @@ struct SkyScreen: View {
         }
     }
 
+    /// White shutter-style button; enabled once the ring around a constellation is full.
+    private var captureButton: some View {
+        Button {
+            captureCount += 1
+        } label: {
+            ZStack {
+                Circle().stroke(.white, lineWidth: 4)
+                Circle().fill(.white).padding(7)
+            }
+            .frame(width: 72, height: 72)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canCapture)
+        .opacity(canCapture ? 1 : 0.35)
+        .accessibilityLabel(canCapture ? "Capture \(target?.name ?? "")" : "Capture")
+        .padding(.top, 8)
+    }
+
     private func showToast(_ text: String) {
         toast = text
         Task {
@@ -135,26 +150,41 @@ struct SkyScreen: View {
     }
 
     private var hint: some View {
-        VStack(spacing: 2) {
-            Text(arSupported ? "Point your phone at the sky" : "Drag to look around the sky")
-                .font(.subheadline.weight(.semibold))
-            Text("Hold on a constellation to discover it · tap to learn more"
-                 + (location.usingFallback ? " · sky over London, ON" : ""))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 10) {
+            VStack(spacing: 2) {
+                Text(arSupported ? "Point your phone at the sky" : "Drag to look around the sky")
+                    .font(.subheadline.weight(.semibold))
+                Text("Hold on a constellation, then capture it · tap to learn more"
+                     + (location.usingFallback ? " · sky over London, ON" : ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                showHint = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close tip")
         }
-        .padding(.horizontal, 14)
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial, in: Capsule())
     }
 }
 
-/// Sheet with Gemini's description of a constellation.
+/// Sheet with a constellation's description from constellation-info.json.
 struct ConstellationInfoView: View {
     let name: String
     let directionText: String
-    @State private var text: String?
-    @State private var errorMessage: String?
+
+    private var description: String {
+        ConstellationInfoCatalog.info(for: name)?.description ?? ""
+    }
 
     var body: some View {
         ScrollView {
@@ -163,12 +193,10 @@ struct ConstellationInfoView: View {
                 Label(directionText, systemImage: "location.north.line")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if let text {
-                    Text(text)
-                } else if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
+                if description.isEmpty {
+                    Text("No description yet.").foregroundStyle(.secondary)
                 } else {
-                    SwiftUI.ProgressView("Asking Gemini…")
+                    Text(description)
                 }
 
                 Text("Constellation illustrations by Johan Meuris (Free Art License), via Stellarium.")
@@ -178,13 +206,6 @@ struct ConstellationInfoView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-        }
-        .task {
-            do {
-                text = try await GeminiService().describe(constellation: name)
-            } catch {
-                errorMessage = "Couldn't load info: \(error.localizedDescription)"
-            }
         }
     }
 }

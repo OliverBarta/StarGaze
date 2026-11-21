@@ -18,8 +18,11 @@ struct SkySceneView: UIViewRepresentable {
     var hidden = false
     let onTap: (PlacedConstellation) -> Void
     /// The constellation being aimed at and how far collecting it has got, or nil when none is.
+    /// At progress 1 it's ready to capture.
     let onTarget: (SkyTarget?) -> Void
-    /// Fired once when you've held on a constellation long enough.
+    /// Bump to capture the constellation whose ring is full (the capture button).
+    var captureCount = 0
+    /// Fired when a ready constellation is captured.
     let onDiscover: (PlacedConstellation) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -67,6 +70,11 @@ struct SkySceneView: UIViewRepresentable {
         c.discovered = discovered
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
+        if captureCount != c.lastCaptureCount {
+            c.lastCaptureCount = captureCount
+            // after this update pass, since capturing changes SwiftUI state
+            DispatchQueue.main.async { c.capture() }
+        }
     }
 
     static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) {
@@ -92,9 +100,11 @@ struct SkySceneView: UIViewRepresentable {
         var onTarget: (SkyTarget?) -> Void = { _ in }
         var onDiscover: (PlacedConstellation) -> Void = { _ in }
         var discovered: Set<String> = []
+        var lastCaptureCount = 0
         weak var view: SCNView?
 
-        // Targeting and collecting (thresholds live in TargetingTuning).
+        // Targeting and collecting (thresholds live in TargetingTuning). A full ring waits
+        // for the capture button.
         private var tracker = TargetTracker()
         private var lastReported: SkyTarget?
         private var lastTick: CFTimeInterval?
@@ -262,17 +272,20 @@ struct SkySceneView: UIViewRepresentable {
             }
             tracker.update(candidates: candidates, dt: dt)
 
-            if tracker.progress >= 1, let id = tracker.progressID,
-               let target = drawn.first(where: { $0.placed.id == id }) {
-                tracker.clearProgress()
-                discovered.insert(target.placed.name)
-                refreshDiscoveredColors()
-                celebrate(at: target.center)
-                report(nil)
-                onDiscover(target.placed)
-                return
-            }
             report(currentTarget())
+        }
+
+        /// Captures the targeted constellation if it's undiscovered and its ring is full.
+        func capture() {
+            guard let id = tracker.currentID, tracker.progressID == id, tracker.progress >= 1,
+                  let target = drawn.first(where: { $0.placed.id == id }),
+                  !discovered.contains(target.placed.name) else { return }
+            discovered.insert(target.placed.name)
+            refreshDiscoveredColors()
+            celebrate(at: target.center)
+            tracker.clearProgress()
+            report(nil)
+            onDiscover(target.placed)
         }
 
         /// The ring's content: the targeted constellation, or the one whose progress is still draining.
@@ -288,10 +301,12 @@ struct SkySceneView: UIViewRepresentable {
             return nil
         }
 
-        /// Tells SwiftUI only about changes it can see (progress in ~4% steps).
+        /// Tells SwiftUI only about changes it can see (progress in ~4% steps, and always
+        /// the moment the ring becomes full or stops being full, which toggles the capture button).
         private func report(_ target: SkyTarget?) {
             if let target, let last = lastReported, target.name == last.name,
-               target.isCollected == last.isCollected, abs(target.progress - last.progress) < 0.04 {
+               target.isCollected == last.isCollected, (target.progress >= 1) == (last.progress >= 1),
+               abs(target.progress - last.progress) < 0.04 {
                 return
             }
             guard target != lastReported else { return }

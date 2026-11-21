@@ -164,6 +164,23 @@ final class SupabaseService {
         try await request("GET", "feed", query: ["select": "*", "limit": "\(limit)"])
     }
 
+    // MARK: Light readings
+
+    /// Every row of `light_readings`, paged because Supabase caps each response at 1000 rows.
+    func fetchLightReadings(pageSize: Int = 1000) async throws -> [LightReading] {
+        var all: [LightReading] = []
+        while true {
+            let page: [LightReading] = try await request("GET", "light_readings", query: [
+                "select": "coordinates,strength",
+                "order": "id",
+                "limit": "\(pageSize)",
+                "offset": "\(all.count)",
+            ])
+            all += page
+            if page.count < pageSize { return all }
+        }
+    }
+
     // MARK: Requests
 
     private func request<Response: Decodable>(
