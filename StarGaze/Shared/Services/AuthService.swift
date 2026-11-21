@@ -25,6 +25,9 @@ final class AuthService {
     /// Set explicitly because Auth0.swift's default uses the bundle ID's original casing for the scheme.
     private static let callbackURL = URL(string: "com.oliver.stargaze://dev-egzorfokrbjlmaxi.us.auth0.com/ios/com.oliver.StarGaze/callback")!
     private static let scope = "openid profile email offline_access"
+    /// The Auth0 API identifier. With an audience, Auth0 issues a JWT access token that
+    /// Supabase (Third-Party Auth) can verify; without one the token is opaque.
+    private static let apiAudience = "https://stargaze-api"
 
     func restoreSession() async {
         guard !hasRestored else { return }
@@ -43,6 +46,11 @@ final class AuthService {
             // they'll be renewed the next time credentials are requested online.
             user = storedUser()
         }
+    }
+
+    /// A current Auth0 access token for Supabase, renewed through the refresh token if it expired.
+    func accessToken() async throws -> String {
+        try await credentialsManager.credentials().accessToken
     }
 
     func login() async {
@@ -78,6 +86,7 @@ final class AuthService {
         var webAuth = Auth0.webAuth()
             .redirectURL(Self.callbackURL)
             .scope(Self.scope)
+            .audience(Self.apiAudience)
         if signUp {
             webAuth = webAuth.parameters(["screen_hint": "signup"])
         }

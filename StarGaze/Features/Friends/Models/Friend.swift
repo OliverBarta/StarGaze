@@ -6,7 +6,8 @@
 import Foundation
 
 struct Friend: Identifiable, Hashable {
-    let id: UUID
+    /// The friend's Auth0 user ID.
+    let id: String
     var name: String
     var avatarURL: URL?
 }

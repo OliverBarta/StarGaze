@@ -12,6 +12,8 @@ enum AppTab: Hashable {
 }
 
 struct ContentView: View {
+    @Environment(AuthService.self) private var auth
+    @Environment(SupabaseService.self) private var supabase
     @State private var store = DiscoveryStore()
     @State private var selection: AppTab = .stars
 
@@ -25,7 +27,7 @@ struct ContentView: View {
                     StargazingSpotsView()
                 }
                 Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
-                    FriendsView()
+                    FriendsView(viewModel: FriendsViewModel(dataSource: SupabaseFriendsDataSource(service: supabase)))
                 }
                 Tab("Collection", systemImage: "square.grid.2x2", value: AppTab.collection) {
                     CollectionView(constellations: store.cards)
@@ -41,9 +43,29 @@ struct ContentView: View {
             }
         }
         .environment(store)
+        .task {
+            await startSharing()
+        }
         .onChange(of: selection) { old, _ in
             // stamps only slam in once
             if old == .collection { store.freshStamps = [] }
+        }
+    }
+
+    /// Sets up the Supabase profile, uploads finds made offline or before sign-in,
+    /// then shares each new find as it happens. Failures are retried on the next launch.
+    private func startSharing() async {
+        store.onDiscover = { [supabase] discovery in
+            Task {
+                do { try await supabase.uploadCaptures([discovery]) } catch { print("Couldn't share \(discovery.name): \(error)") }
+            }
+        }
+        guard let user = auth.user else { return }
+        do {
+            try await supabase.syncProfile(for: user)
+            try await supabase.uploadCaptures(Array(store.discoveries.values))
+        } catch {
+            print("Supabase sync failed: \(error)")
         }
     }
 
@@ -69,4 +91,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environment(AuthService.preview(user: .preview))
+        .environment(SupabaseService.preview())
 }
