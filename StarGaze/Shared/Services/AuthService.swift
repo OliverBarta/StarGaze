@@ -6,6 +6,7 @@
 import Auth0
 import Foundation
 import Observation
+import OSLog
 
 /// Wraps Auth0.swift (3.x) for login, sign-up, logout and session restore.
 /// Credentials live only in the Keychain, through `CredentialsManager`.
@@ -25,6 +26,10 @@ final class AuthService {
     /// Set explicitly because Auth0.swift's default uses the bundle ID's original casing for the scheme.
     private static let callbackURL = URL(string: "com.oliver.stargaze://dev-egzorfokrbjlmaxi.us.auth0.com/ios/com.oliver.StarGaze/callback")!
     private static let scope = "openid profile email offline_access"
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "StarGaze", category: "Auth")
+    /// The Auth0 API identifier. With an audience, Auth0 issues a JWT access token that
+    /// Supabase (Third-Party Auth) can verify; without one the token is opaque.
+    private static let apiAudience = "https://stargaze-api"
 
     func restoreSession() async {
         guard !hasRestored else { return }
@@ -36,13 +41,20 @@ final class AuthService {
             _ = try await credentialsManager.credentials()
             user = storedUser()
         } catch let error as CredentialsManagerError where Self.isSessionInvalid(error) {
+            Self.logger.notice("Session can't be renewed, signing out: \(String(describing: error), privacy: .public)")
             try? credentialsManager.clear()
             user = nil
         } catch {
+            Self.logger.notice("Session renewal failed, keeping stored session: \(String(describing: error), privacy: .public)")
             // Most likely offline. Keep the user signed in with the stored credentials;
             // they'll be renewed the next time credentials are requested online.
             user = storedUser()
         }
+    }
+
+    /// A current Auth0 access token for Supabase, renewed through the refresh token if it expired.
+    func accessToken() async throws -> String {
+        try await credentialsManager.credentials().accessToken
     }
 
     func login() async {
@@ -64,6 +76,7 @@ final class AuthService {
             return
         } catch {
             // Couldn't end the Auth0 browser session (e.g. offline). Still sign out on this device.
+            Self.logger.error("Logout failed: \(String(describing: error), privacy: .public)")
         }
         try? credentialsManager.clear()
         user = nil
@@ -78,6 +91,7 @@ final class AuthService {
         var webAuth = Auth0.webAuth()
             .redirectURL(Self.callbackURL)
             .scope(Self.scope)
+            .audience(Self.apiAudience)
         if signUp {
             webAuth = webAuth.parameters(["screen_hint": "signup"])
         }
@@ -89,6 +103,8 @@ final class AuthService {
         } catch WebAuthError.userCancelled {
             errorMessage = "Login was cancelled. Tap Log In to try again."
         } catch {
+            // Auth0 errors describe the failure and its cause; they don't contain tokens.
+            Self.logger.error("Login failed: \(String(describing: error), privacy: .public)")
             errorMessage = "Couldn't log in. Check your connection and try again."
         }
     }

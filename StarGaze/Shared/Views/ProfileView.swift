@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(AuthService.self) private var auth
+    @Environment(SupabaseService.self) private var supabase: SupabaseService?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -17,6 +18,12 @@ struct ProfileView: View {
                     Text(user.displayName)
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
+                    if let username = supabase?.profile?.username {
+                        Text("@\(username)")
+                            .font(.headline)
+                            .foregroundStyle(.tint)
+                            .textSelection(.enabled)
+                    }
                     if let email = user.email, email != user.displayName {
                         Text(email)
                             .font(.subheadline)
@@ -57,4 +64,5 @@ struct ProfileView: View {
                 .presentationDetents([.medium])
         }
         .environment(AuthService.preview(user: .preview))
+        .environment(SupabaseService.preview())
 }

@@ -37,6 +37,17 @@ struct FriendsView: View {
                     }
                     .presentationDetents([.medium])
                 }
+                .alert(
+                    "Couldn't Add Friend",
+                    isPresented: Binding(
+                        get: { viewModel.addFriendError != nil },
+                        set: { if !$0 { viewModel.addFriendError = nil } }
+                    )
+                ) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(viewModel.addFriendError ?? "")
+                }
                 .task {
                     await viewModel.load()
                 }

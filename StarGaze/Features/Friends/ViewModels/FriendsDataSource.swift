@@ -12,4 +12,13 @@ protocol FriendsDataSource {
     /// The feed shows all of them; the leaderboard counts each constellation once per friend
     /// per week (see `FriendStanding.ranked`), so implementations shouldn't dedupe.
     func fetchCaptures() async throws -> [FriendCapture]
+
+    /// Follows the user with this username, so their captures appear in `fetchCaptures()`.
+    func follow(username: String) async throws
+}
+
+enum FollowError: Error {
+    case notSignedUp
+    case userNotFound
+    case cannotFollowSelf
 }
