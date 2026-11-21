@@ -6,9 +6,9 @@
 //      StargazingSpotsView()
 //          .tabItem { Label("Stargazing", systemImage: "sparkles") }
 //
-//  Shows the light-pollution map, the 5 best dark spots within 25/50/100 km,
-//  tonight's clouds and Moon with a time slider, favourites, and a detail card
-//  with directions. Uses the London, ON test location until switched off.
+//  Shows the light-pollution map, the 3 best spots (darkness + cloud) within 25 km,
+//  tonight's clouds and Moon with a time slider, and a detail card
+//  with directions. Starts at the last saved location, then switches to live GPS.
 //
 
 import SwiftUI
@@ -22,6 +22,9 @@ enum StargazingConfig {
     /// move the tiles to hosting, e.g.
     ///     URL(string: "https://<github-user>.github.io/<repo>/LightTiles/")
     static let tilesBaseURL: URL? = nil
+
+    /// How far from the user to look for dark spots.
+    static let searchRadiusKm: Double = 25
 }
 
 // MARK: - Entry view
@@ -29,36 +32,36 @@ enum StargazingConfig {
 struct StargazingSpotsView: View {
     @State private var lightService = LightPollutionService(remoteBaseURL: StargazingConfig.tilesBaseURL)
     @State private var tonight = TonightConditionsService()
-    @State private var location = LocationProvider(useTestLocation: true)
-    @State private var favorites = FavoriteSpotsStore()
+    @State private var location = LocationProvider()
 
-    @State private var radius: SearchRadius = .km50
     @State private var spots: [StargazingSpot] = []
     @State private var selectedSpot: StargazingSpot?
     @State private var drives: [String: DriveInfo] = [:]
     @State private var loadingDrives: Set<String> = []
     @State private var isSearching = false
+    @State private var isReloading = false
+    /// Set by the reload button so the next search also skips the 30-minute cloud cache.
+    @State private var forceNextSearch = false
 
     @State private var hours: [Date] = TonightConditionsService.nightHours()
     @State private var hourIndex: Double = 0
 
     @State private var showClouds = true
     @State private var showLightPollution = true
-    @State private var showFavorites = false
-    @State private var pendingFavorite: StargazingSpot?
 
     private var selectedTime: Date {
         guard !hours.isEmpty else { return .now }
         return hours[min(hours.count - 1, max(0, Int(hourIndex.rounded())))]
     }
 
-    /// Re-run the search whenever the location (to ~100 m) or radius changes.
+    /// Re-run the search whenever the location changes (to ~100 m) or a new GPS fix
+    /// arrives, even one at the same place, so the first fix after launch reloads everything.
     private nonisolated struct SearchKey: Equatable {
-        let lat: Int, lon: Int, radius: Int
+        let lat: Int, lon: Int, fix: Int
     }
     private var searchKey: SearchKey? {
         guard let c = location.coordinate else { return nil }
-        return SearchKey(lat: Int(c.latitude * 1000), lon: Int(c.longitude * 1000), radius: radius.rawValue)
+        return SearchKey(lat: Int(c.latitude * 1000), lon: Int(c.longitude * 1000), fix: location.fixCount)
     }
 
     var body: some View {
@@ -68,11 +71,10 @@ struct StargazingSpotsView: View {
                     service: lightService,
                     tileCount: lightService.tiles.count,
                     centre: location.coordinate,
-                    isTestLocation: location.useTestLocation,
-                    radiusKm: radius.km,
+                    isSavedLocation: location.isUsingSavedLocation,
+                    radiusKm: StargazingConfig.searchRadiusKm,
                     spots: spots,
-                    favorites: favorites.spots,
-                    cloudCells: tonight.cloudCells(at: selectedTime),
+                    cloudField: tonight.cloudField(at: selectedTime),
                     showClouds: showClouds,
                     showLightPollution: showLightPollution,
                     selectedSpot: $selectedSpot,
@@ -80,28 +82,25 @@ struct StargazingSpotsView: View {
                         Task { await lightService.loadTiles(around: centre, radiusKm: min(visibleKm, 300)) }
                     }
                 )
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()      // edge to edge, under the navigation bar
 
                 bottomPanel
             }
-            .safeAreaInset(edge: .top) { topBar }
-            .navigationTitle("Stargazing Spots")
+            .safeAreaInset(edge: .top) { statusBar }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar { toolbarContent }
             .sheet(item: $selectedSpot) { spot in
                 detail(for: spot)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showFavorites, onDismiss: {
-                if let spot = pendingFavorite {
-                    pendingFavorite = nil
-                    selectedSpot = spot
-                }
-            }) {
-                favoritesList
-            }
             .task(id: searchKey) { await runSearch() }
+            .onChange(of: selectedTime) {
+                // clouds differ by hour, so the best spots can too
+                pickSpots()
+                Task { await loadDrives() }
+            }
             .onAppear {
                 hours = TonightConditionsService.nightHours()
                 hourIndex = 0
@@ -112,18 +111,49 @@ struct StargazingSpotsView: View {
     // MARK: - Search
 
     private func runSearch() async {
+        let force = forceNextSearch
+        forceNextSearch = false
+        // a reload's search is the forced one; the reload button stays disabled until it ends
+        defer { if force { isReloading = false } }
         guard let centre = location.coordinate else { return }
         isSearching = true
         defer { isSearching = false }
 
-        await lightService.loadTiles(around: centre, radiusKm: radius.km)
-        spots = lightService.findDarkSpots(near: centre, radiusKm: radius.km)
+        await lightService.loadTiles(around: centre, radiusKm: StargazingConfig.searchRadiusKm)
         drives = [:]
+        pickSpots()     // darkness only (or the cached forecast) so pins show up right away
 
-        await tonight.refreshClouds(around: centre, radiusKm: radius.km)
+        await tonight.refreshClouds(around: centre, radiusKm: StargazingConfig.searchRadiusKm, force: force)
+        pickSpots()     // again, now with the cloud forecast
 
+        await loadDrives()
+    }
+
+    /// Chooses the spots from darkness and the cloud forecast at the selected hour.
+    private func pickSpots() {
+        guard let centre = location.coordinate else { return }
+        let time = selectedTime
+        spots = lightService.findDarkSpots(near: centre, radiusKm: StargazingConfig.searchRadiusKm,
+                                           cloudCover: { tonight.cloudCover(at: $0, time: time) })
+    }
+
+    private func loadDrives() async {
+        guard let centre = location.coordinate else { return }
         for spot in spots {
             await loadDrive(to: spot, from: centre)
+        }
+    }
+
+    /// Reload button: re-check the location, then reload everything around it.
+    private func reload() async {
+        isReloading = true      // cleared when the forced search finishes (see runSearch)
+        hours = TonightConditionsService.nightHours()
+        hourIndex = 0
+        forceNextSearch = true
+        // A new fix changes `searchKey`, which re-runs the search by itself.
+        // Without one (denied, failed, timed out), reload around the current location.
+        if await !location.refresh() {
+            await runSearch()
         }
     }
 
@@ -136,44 +166,33 @@ struct StargazingSpotsView: View {
         loadingDrives.remove(spot.id)
     }
 
-    // MARK: - Top bar
+    // MARK: - Status bar
 
-    private var topBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: location.useTestLocation ? "mappin.circle.fill" : "location.fill")
-                    .foregroundStyle(.secondary)
-                Text(location.displayName).font(.subheadline.weight(.medium))
-                Spacer()
-                Toggle("Test location", isOn: $location.useTestLocation)
-                    .toggleStyle(.button)
-                    .controlSize(.small)
-            }
-            Picker("Radius", selection: $radius) {
-                ForEach(SearchRadius.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-
-            if let message = statusMessage {
-                Text(message).font(.caption).foregroundStyle(.secondary)
-            }
+    /// Strip under the navigation bar, only shown when there's something to say.
+    @ViewBuilder
+    private var statusBar: some View {
+        if let message = statusMessage {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.regularMaterial)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.regularMaterial)
     }
 
     private var statusMessage: String? {
         if location.coordinate == nil {
             return location.status == .denied
-                ? "Location is off. Allow it in Settings, or use the test location."
+                ? "Location is off. Allow it in Settings to find spots near you."
                 : "Waiting for your location…"
         }
         if isSearching && spots.isEmpty { return "Finding dark spots…" }
         if spots.isEmpty && !lightService.missingTiles.isEmpty {
             return "No light-pollution data here yet. Connect to the internet once to download it."
         }
-        if spots.isEmpty { return "No dark land spots within \(radius.label)." }
+        if spots.isEmpty { return "No dark land spots within \(Int(StargazingConfig.searchRadiusKm)) km." }
         if let error = tonight.lastError { return error }
         return nil
     }
@@ -192,7 +211,6 @@ struct StargazingSpotsView: View {
                     Text(hours.last!.formatted(date: .omitted, time: .shortened)).font(.caption2)
                 }
             }
-            spotCards
             legend
         }
         .padding()
@@ -202,52 +220,22 @@ struct StargazingSpotsView: View {
     }
 
     private var tonightSummary: some View {
-        let centre = location.coordinate ?? TestLocation.londonON
-        let sky = tonight.sky(at: centre, time: selectedTime)
-        let cloud = tonight.cloudCover(at: centre, time: selectedTime)
-        return HStack(spacing: 12) {
+        HStack(spacing: 12) {
             Text(selectedTime.formatted(date: .omitted, time: .shortened)).font(.headline.monospacedDigit())
-            Label("\(Int((sky.moonIllumination * 100).rounded()))% \(sky.moonIsUp ? "up" : "set")",
-                  systemImage: sky.moonIsUp ? "moon.fill" : "moon.zzz")
-            Label(cloud.map { "\(Int($0.rounded()))%" } ?? "–", systemImage: "cloud.fill")
-            if !sky.isAstronomicallyDark {
-                Label("twilight", systemImage: "sun.horizon")
+            // nothing to show until there's a location (first launch, before GPS answers)
+            if let centre = location.coordinate {
+                let sky = tonight.sky(at: centre, time: selectedTime)
+                let cloud = tonight.cloudCover(at: centre, time: selectedTime)
+                Label("\(Int((sky.moonIllumination * 100).rounded()))% \(sky.moonIsUp ? "up" : "set")",
+                      systemImage: sky.moonIsUp ? "moon.fill" : "moon.zzz")
+                Label(cloud.map { "\(Int($0.rounded()))%" } ?? "–", systemImage: "cloud.fill")
+                if !sky.isAstronomicallyDark {
+                    Label("twilight", systemImage: "sun.horizon")
+                }
             }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-    }
-
-    private var spotCards: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(Array(spots.enumerated()), id: \.element.id) { index, spot in
-                    Button { selectedSpot = spot } label: { spotCard(rank: index + 1, spot: spot) }
-                        .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func spotCard(rank: Int, spot: StargazingSpot) -> some View {
-        let score = tonight.score(for: spot, at: selectedTime)
-        let km = drives[spot.id]?.distanceKm ?? spot.straightLineKm
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text("\(rank)")
-                    .font(.caption.bold())
-                    .frame(width: 22, height: 22)
-                    .background(Bortle.color(spot.bortle), in: Circle())
-                    .foregroundStyle(spot.bortle <= 4 ? Color.white : Color.black)
-                Text("Bortle \(spot.bortle)").font(.subheadline.weight(.semibold))
-            }
-            Text("Tonight \(score.score)").font(.caption.weight(.medium))
-            Text(StargazingFormat.km(km) + (drives[spot.id] == nil ? " away" : " drive"))
-                .font(.caption2).foregroundStyle(.secondary)
-        }
-        .padding(10)
-        .frame(width: 120, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var legend: some View {
@@ -264,9 +252,9 @@ struct StargazingSpotsView: View {
                 }
             }
             .font(.caption2)
-            Text("Light pollution: Falchi et al. 2016 (CC BY-NC) · Weather: Open-Meteo")
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
+//            Text("Light pollution: Falchi et al. 2016 (CC BY-NC) · Weather: Open-Meteo")
+//                .font(.system(size: 9))
+//                .foregroundStyle(.secondary)
         }
     }
 
@@ -282,6 +270,15 @@ struct StargazingSpotsView: View {
                 Image(systemName: "square.3.layers.3d")
             }
             .accessibilityLabel("Map layers")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                Task { await reload() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(isReloading)
+            .accessibilityLabel("Reload location and spots")
         }
     }
 
@@ -303,46 +300,11 @@ struct StargazingSpotsView: View {
             selectedTime: selectedTime,
             bestTime: best?.time,
             bestScore: best?.score,
-            isFavorite: favorites.contains(spot),
-            onToggleFavorite: { favorites.toggle(spot) },
             onDirections: { Driving.openInMaps(spot) }
         )
         .task {
-            // favourites outside the current top 5 don't have a driving distance yet
+            // in case a reload cleared the driving distances while the card is open
             if let c = location.coordinate { await loadDrive(to: spot, from: c) }
-        }
-    }
-
-    private var favoritesList: some View {
-        NavigationStack {
-            List {
-                if favorites.spots.isEmpty {
-                    ContentUnavailableView("No favourites yet", systemImage: "star",
-                                           description: Text("Tap the star on a spot to save it."))
-                }
-                ForEach(favorites.spots) { spot in
-                    Button {
-                        pendingFavorite = spot
-                        showFavorites = false
-                    } label: {
-                        HStack(spacing: 12) {
-                            Circle().fill(Bortle.color(spot.bortle)).frame(width: 14, height: 14)
-                            VStack(alignment: .leading) {
-                                Text("Bortle \(spot.bortle) · \(Bortle.label(spot.bortle))")
-                                Text(String(format: "%.4f, %.4f", spot.latitude, spot.longitude))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                .onDelete { favorites.remove(atOffsets: $0) }
-            }
-            .navigationTitle("Favourites")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { showFavorites = false }
-                }
-            }
         }
     }
 }

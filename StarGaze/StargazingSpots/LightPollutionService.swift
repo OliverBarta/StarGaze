@@ -129,7 +129,7 @@ nonisolated struct SkyReading: Sendable, Equatable {
     let bortle: Int          // 1...9
 }
 
-nonisolated struct StargazingSpot: Identifiable, Hashable, Sendable, Codable {
+nonisolated struct StargazingSpot: Identifiable, Hashable, Sendable {
     let latitude: Double
     let longitude: Double
     let sqm: Double
@@ -287,22 +287,25 @@ final class LightPollutionService {
 
     // MARK: Best spots
 
-    /// Darkest land cells within `radiusKm`, spread at least `minSeparationKm` apart.
-    /// Spots whose darkness is within `similarDarknessMag` of each other are ranked
-    /// nearest-first, so we don't send people 98 km away for a 0.02 mag gain.
+    /// Best land cells within `radiusKm`, spread at least `minSeparationKm` apart, ranked by
+    /// darkness x cloud (the same factors as Tonight's score). `cloudCover` gives the cloud %
+    /// at a coordinate, or nil when there's no forecast (then only darkness counts).
+    /// Spots within `similarDarknessMag` of each other are ranked nearest-first,
+    /// so we don't send people far away for a 0.02 mag gain.
     /// Call `loadTiles(around:radiusKm:)` first.
     func findDarkSpots(near centre: CLLocationCoordinate2D,
                        radiusKm: Double,
-                       count: Int = 5,
+                       count: Int = 3,
                        minSeparationKm: Double = 10,
-                       similarDarknessMag: Double = 0.1) -> [StargazingSpot] {
+                       similarDarknessMag: Double = 0.1,
+                       cloudCover: (CLLocationCoordinate2D) -> Double? = { _ in nil }) -> [StargazingSpot] {
         let latSpan = radiusKm / 111.32
         let lonSpan = radiusKm / (111.32 * max(0.01, cos(centre.latitude * .pi / 180)))
         let minLat = centre.latitude - latSpan, maxLat = centre.latitude + latSpan
         let minLon = centre.longitude - lonSpan, maxLon = centre.longitude + lonSpan
         let n = LightTile.cells, cd = LightTile.cellDegrees
 
-        struct Candidate { let byte: UInt8; let lat: Double; let lon: Double; let km: Double }
+        struct Candidate { let byte: UInt8; let quality: Double; let lat: Double; let lon: Double; let km: Double }
         var candidates: [Candidate] = []
 
         for key in Self.tileKeys(around: centre, radiusKm: radiusKm) {
@@ -322,14 +325,22 @@ final class LightPollutionService {
                     let lon = tile.west + (Double(col) + 0.5) * cd
                     let km = Self.distanceKm(centre.latitude, centre.longitude, lat, lon)
                     guard km <= radiusKm else { continue }
-                    candidates.append(Candidate(byte: byte, lat: lat, lon: lon, km: km))
+                    let sqm = LightTile.sqm(fromByte: byte)!
+                    let cloud = cloudCover(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                    let quality = TonightScoring.darknessFactor(sqm: sqm) * TonightScoring.cloudFactor(cloud)
+                    candidates.append(Candidate(byte: byte, quality: quality, lat: lat, lon: lon, km: km))
                 }
             }
         }
 
-        // darkest first (in buckets of `similarDarknessMag`), then nearest first
+        // best darkness x cloud first, then darkest, then nearest. Both are compared in buckets
+        // the size of `similarDarknessMag`; darkness alone breaks ties when the quality is 0
+        // (all cells brighter than SQM 18, or 100% cloud everywhere).
         let bucketBytes = max(1, Int((similarDarknessMag / LightTile.sqmStep).rounded()))
+        let qualityBucket = similarDarknessMag / 4        // darknessFactor gains 1 per 4 mag
         candidates.sort {
+            let qa = Int($0.quality / qualityBucket), qb = Int($1.quality / qualityBucket)
+            if qa != qb { return qa > qb }
             let a = Int($0.byte) / bucketBytes, b = Int($1.byte) / bucketBytes
             return a != b ? a > b : $0.km < $1.km
         }

@@ -3,8 +3,7 @@
 //  Stargazing Spots feature
 //
 //  Small shared pieces used by the views:
-//    - LocationProvider: real GPS, or a hardcoded test location (London, ON)
-//    - SearchRadius: the 25 / 50 / 100 km picker options
+//    - LocationProvider: GPS, starting from the last saved location
 //    - Bortle colours for SwiftUI (legend, badges)
 //    - Driving: driving distance/time (online) + "open in Apple Maps"
 //
@@ -19,14 +18,6 @@ import CoreLocation
 import MapKit
 import Observation
 
-// MARK: - Test locations
-
-nonisolated enum TestLocation {
-    /// Downtown London, Ontario — used for indoor demos.
-    static let londonON = CLLocationCoordinate2D(latitude: 42.9849, longitude: -81.2453)
-    static let londonONName = "London, ON (test)"
-}
-
 // MARK: - Location
 
 @MainActor
@@ -37,63 +28,83 @@ final class LocationProvider {
         case idle, locating, ready, denied, failed
     }
 
-    /// When true, the app pretends the user is in London, ON and never asks for GPS.
-    var useTestLocation: Bool {
-        didSet { useTestLocation ? stop() : start() }
-    }
-
+    /// Latest GPS fix from this launch (nil until GPS answers).
     private(set) var gpsCoordinate: CLLocationCoordinate2D?
+    /// Last GPS fix from a previous launch, used until GPS answers.
+    private(set) var savedCoordinate: CLLocationCoordinate2D?
     private(set) var status: Status = .idle
+    /// Goes up by one every time a new GPS fix is published, even if it barely moved.
+    private(set) var fixCount = 0
 
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
     @ObservationIgnored private var session: CLServiceSession?
+    @ObservationIgnored private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
-    init(useTestLocation: Bool = true) {
-        self.useTestLocation = useTestLocation
-        if !useTestLocation { start() }
-    }
+    private static let savedLatKey = "lastKnownLatitude"
+    private static let savedLonKey = "lastKnownLongitude"
 
-    /// The coordinate the feature should search around (nil until GPS has a fix).
-    var coordinate: CLLocationCoordinate2D? {
-        useTestLocation ? TestLocation.londonON : gpsCoordinate
-    }
-
-    var displayName: String {
-        if useTestLocation { return TestLocation.londonONName }
-        switch status {
-        case .ready: return "Your location"
-        case .locating, .idle: return "Locating…"
-        case .denied: return "Location access denied"
-        case .failed: return "Location unavailable"
+    init() {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: Self.savedLatKey) != nil {
+            savedCoordinate = CLLocationCoordinate2D(latitude: defaults.double(forKey: Self.savedLatKey),
+                                                     longitude: defaults.double(forKey: Self.savedLonKey))
         }
+        start()
     }
 
-    /// Starts (or restarts) GPS. Asks for "When In Use" permission the first time.
-    func start() {
-        guard !useTestLocation, updatesTask == nil else { return }
+    /// The coordinate the feature should search around: GPS if we have it,
+    /// otherwise the last saved location (nil on the very first launch until GPS answers).
+    var coordinate: CLLocationCoordinate2D? { gpsCoordinate ?? savedCoordinate }
+
+    /// True while showing the saved location because GPS hasn't answered yet.
+    var isUsingSavedLocation: Bool { gpsCoordinate == nil && savedCoordinate != nil }
+
+    /// Re-checks the location: restarts GPS and waits (up to `timeout`) for a fresh fix.
+    /// Returns true if a new fix was published, false if GPS was denied, failed or timed out.
+    func refresh(timeout: Duration = .seconds(15)) async -> Bool {
+        let before = fixCount
+        stop()
+        start(forceFirstFix: true)
+        let id = UUID()
+        let timeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            self?.resume(id)
+        }
+        await withCheckedContinuation { waiters[id] = $0 }
+        timeoutTask.cancel()
+        return fixCount != before
+    }
+
+    /// Starts GPS. Asks for "When In Use" permission the first time.
+    /// `forceFirstFix` publishes the first fix even if it's within 500 m of the last one.
+    func start(forceFirstFix: Bool = false) {
+        guard updatesTask == nil else { return }
         status = .locating
         session = CLServiceSession(authorization: .whenInUse)
 
         updatesTask = Task { [weak self] in
+            var force = forceFirstFix
             do {
                 for try await update in CLLocationUpdate.liveUpdates() {
                     guard let self else { return }
                     if update.authorizationDenied || update.authorizationDeniedGlobally {
                         self.status = .denied
+                        self.resumeAll()
                         continue
                     }
                     guard let location = update.location else { continue }
                     // Only publish when we moved > 500 m, so spots aren't recomputed constantly.
-                    if let old = self.gpsCoordinate,
+                    if !force, let old = self.gpsCoordinate,
                        CLLocation(latitude: old.latitude, longitude: old.longitude)
                         .distance(from: location) < 500 {
                         continue
                     }
-                    self.gpsCoordinate = location.coordinate
-                    self.status = .ready
+                    force = false
+                    self.publish(location.coordinate)
                 }
             } catch {
                 self?.status = .failed
+                self?.resumeAll()
             }
         }
     }
@@ -105,16 +116,23 @@ final class LocationProvider {
         session = nil
         if gpsCoordinate == nil { status = .idle }
     }
-}
 
-// MARK: - Search radius
+    private func publish(_ c: CLLocationCoordinate2D) {
+        gpsCoordinate = c
+        status = .ready
+        fixCount += 1
+        UserDefaults.standard.set(c.latitude, forKey: Self.savedLatKey)
+        UserDefaults.standard.set(c.longitude, forKey: Self.savedLonKey)
+        resumeAll()
+    }
 
-nonisolated enum SearchRadius: Int, CaseIterable, Identifiable, Sendable {
-    case km25 = 25, km50 = 50, km100 = 100
+    private func resume(_ id: UUID) {
+        waiters.removeValue(forKey: id)?.resume()
+    }
 
-    var id: Int { rawValue }
-    var km: Double { Double(rawValue) }
-    var label: String { "\(rawValue) km" }
+    private func resumeAll() {
+        for id in Array(waiters.keys) { resume(id) }
+    }
 }
 
 // MARK: - Bortle colours for SwiftUI
@@ -175,46 +193,6 @@ enum Driving {
                              address: nil)
         item.name = name
         return item
-    }
-}
-
-// MARK: - Favourites (saved on the device)
-
-@MainActor
-@Observable
-final class FavoriteSpotsStore {
-    private(set) var spots: [StargazingSpot] = []
-    private let storageKey = "stargazing.favoriteSpots.v1"
-
-    init() {
-        if let data = UserDefaults.standard.data(forKey: storageKey),
-           let saved = try? JSONDecoder().decode([StargazingSpot].self, from: data) {
-            spots = saved
-        }
-    }
-
-    func contains(_ spot: StargazingSpot) -> Bool {
-        spots.contains { $0.id == spot.id }
-    }
-
-    func toggle(_ spot: StargazingSpot) {
-        if contains(spot) {
-            spots.removeAll { $0.id == spot.id }
-        } else {
-            spots.append(spot)
-        }
-        save()
-    }
-
-    func remove(atOffsets offsets: IndexSet) {
-        spots.remove(atOffsets: offsets)
-        save()
-    }
-
-    private func save() {
-        if let data = try? JSONEncoder().encode(spots) {
-            UserDefaults.standard.set(data, forKey: storageKey)
-        }
     }
 }
 

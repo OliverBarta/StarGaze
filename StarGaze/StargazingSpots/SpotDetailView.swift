@@ -4,14 +4,14 @@
 //
 //  The card shown when a spot is tapped: darkness (Bortle + SQM), Tonight's
 //  score with its reason, clouds / Moon / twilight, distance (straight-line
-//  and driving), favourite toggle and a Directions button for Apple Maps.
+//  and driving) and a Directions button for Apple Maps.
 //
 
 import SwiftUI
 
 struct SpotDetailView: View {
     let spot: StargazingSpot
-    let rank: Int?                         // nil = a favourite outside the current top 5
+    let rank: Int?                         // nil if the spot left the top 3 while the card was open
     let straightLineKm: Double             // from the current search centre
     let drive: DriveInfo?
     let isLoadingDrive: Bool
@@ -19,8 +19,6 @@ struct SpotDetailView: View {
     let selectedTime: Date
     let bestTime: Date?
     let bestScore: TonightScore?
-    let isFavorite: Bool
-    let onToggleFavorite: () -> Void
     let onDirections: () -> Void
 
     var body: some View {
@@ -50,17 +48,8 @@ struct SpotDetailView: View {
     // MARK: Sections
 
     private var header: some View {
-        HStack {
-            Text(rank.map { "Spot \($0)" } ?? "Favourite spot")
-                .font(.title2.bold())
-            Spacer()
-            Button(action: onToggleFavorite) {
-                Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.title2)
-                    .foregroundStyle(isFavorite ? Color.yellow : Color.secondary)
-            }
-            .accessibilityLabel(isFavorite ? "Remove from favourites" : "Save as favourite")
-        }
+        Text(rank.map { "Spot \($0)" } ?? "Spot")
+            .font(.title2.bold())
     }
 
     private var darknessRow: some View {

@@ -113,13 +113,21 @@ nonisolated struct TonightScore: Sendable, Equatable {
 }
 
 nonisolated enum TonightScoring {
+    /// Site darkness: SQM 18 (city) -> 0, SQM 22 (pristine) -> 1
+    static func darknessFactor(sqm: Double) -> Double {
+        min(1, max(0, (sqm - 18) / 4))
+    }
+
+    /// Cloud: 0% -> 1, 100% -> 0, no forecast -> 1
+    static func cloudFactor(_ cloudPercent: Double?) -> Double {
+        cloudPercent.map { 1 - min(100, max(0, $0)) / 100 } ?? 1
+    }
+
     /// Combines darkness of the site, cloud, Moon and twilight into 0–100.
     /// Each factor is 0...1 and they multiply: any one of them can ruin a night.
     static func score(reading: SkyReading, cloudPercent: Double?, sky: SkyAstronomy) -> TonightScore {
-        // Site darkness: SQM 18 (city) -> 0, SQM 22 (pristine) -> 1
-        let dark = min(1, max(0, (reading.sqm - 18) / 4))
-        // Cloud: 0% -> 1, 100% -> 0
-        let cloudFactor = cloudPercent.map { 1 - min(100, max(0, $0)) / 100 } ?? 1
+        let dark = darknessFactor(sqm: reading.sqm)
+        let cloudFactor = cloudFactor(cloudPercent)
         // Moon: a full Moon high in the sky costs 60%; a set or new Moon costs nothing
         let moonStrength = sky.moonIsUp
             ? sky.moonIllumination * min(1, (sky.moonAltitudeDeg / 30).squareRoot())
@@ -162,11 +170,14 @@ nonisolated enum TonightScoring {
 
 // MARK: - Cloud grid (Open-Meteo)
 
-/// One coloured square of the cloud overlay.
-nonisolated struct CloudCell: Identifiable, Equatable, Sendable {
-    let id: Int
-    let minLat: Double, maxLat: Double, minLon: Double, maxLon: Double
-    let cover: Double              // 0...100 %
+/// Cloud cover for one hour on the forecast grid, handed to the map, which draws it as
+/// one smooth image (see CloudFieldOverlay in LightPollutionMapView.swift).
+nonisolated struct CloudField: Equatable, Sendable {
+    let rows: Int, cols: Int
+    /// Edges of the area the grid points stand for: the outer points plus half a step.
+    let south: Double, north: Double, west: Double, east: Double
+    /// 0...100 %, row-major, row 0 = south. Points without data count as clear (0).
+    let cover: [Double]
 }
 
 nonisolated struct CloudGrid: Sendable {
@@ -197,20 +208,12 @@ nonisolated struct CloudGrid: Sendable {
         return cover[row * lons.count + col][t]
     }
 
-    func cells(at time: Date) -> [CloudCell] {
-        guard let t = timeIndex(for: time) else { return [] }
-        var out: [CloudCell] = []
-        for row in lats.indices {
-            for col in lons.indices {
-                let i = row * lons.count + col
-                guard let value = cover[i][t] else { continue }
-                out.append(CloudCell(id: i,
-                                     minLat: lats[row] - latStep / 2, maxLat: lats[row] + latStep / 2,
-                                     minLon: lons[col] - lonStep / 2, maxLon: lons[col] + lonStep / 2,
-                                     cover: value))
-            }
-        }
-        return out
+    func field(at time: Date) -> CloudField? {
+        guard let t = timeIndex(for: time), !lats.isEmpty, !lons.isEmpty else { return nil }
+        return CloudField(rows: lats.count, cols: lons.count,
+                          south: lats[0] - latStep / 2, north: lats[lats.count - 1] + latStep / 2,
+                          west: lons[0] - lonStep / 2, east: lons[lons.count - 1] + lonStep / 2,
+                          cover: cover.map { $0[t] ?? 0 })
     }
 }
 
@@ -239,10 +242,10 @@ final class TonightConditionsService {
     init() {}
 
     /// Fetches cloud cover for a grid covering `radiusKm` around `centre`.
-    /// Cached: does nothing if the same area was fetched in the last 30 minutes.
-    func refreshClouds(around centre: CLLocationCoordinate2D, radiusKm: Double) async {
+    /// Cached: does nothing if the same area was fetched in the last 30 minutes, unless `force`.
+    func refreshClouds(around centre: CLLocationCoordinate2D, radiusKm: Double, force: Bool = false) async {
         let key = String(format: "%.1f,%.1f,%.0f", centre.latitude, centre.longitude, radiusKm)
-        if let grid = cloudGrid, grid.key == key, Date().timeIntervalSince(grid.fetchedAt) < maxAge { return }
+        if !force, let grid = cloudGrid, grid.key == key, Date().timeIntervalSince(grid.fetchedAt) < maxAge { return }
 
         // grid slightly larger than the search circle so the overlay covers the view
         let span = radiusKm * 1.3
@@ -305,8 +308,8 @@ final class TonightConditionsService {
         cloudGrid?.cover(at: c, time: time)
     }
 
-    func cloudCells(at time: Date) -> [CloudCell] {
-        cloudGrid?.cells(at: time) ?? []
+    func cloudField(at time: Date) -> CloudField? {
+        cloudGrid?.field(at: time)
     }
 
     func sky(at c: CLLocationCoordinate2D, time: Date) -> SkyAstronomy {
