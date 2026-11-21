@@ -3,8 +3,8 @@ import ARKit
 import SceneKit
 
 /// Draws tonight's constellations as glowing, twinkling stars joined by soft light strands.
-/// - useAR = true  (real iPhone): drawn over the live camera, follows where you point.
-/// - useAR = false (simulator):   a dark "virtual sky" you drag around to look.
+/// - useAR = true (real iPhone): drawn over the live camera, follows where you point.
+/// - useAR = false (simulator): a dark "virtual sky" you can drag, as a developer fallback.
 /// Whatever you point at lights up and shows its name; the rest fades back.
 /// Tapping a star or line reports which constellation was tapped.
 struct SkySceneView: UIViewRepresentable {
@@ -17,9 +17,9 @@ struct SkySceneView: UIViewRepresentable {
     /// Hidden while a cutscene covers the screen, so the GPU isn't drawing two scenes at once.
     var hidden = false
     let onTap: (PlacedConstellation) -> Void
-    /// Name being held on and how far along (0...1), or nil when nothing is.
-    /// At 1 the constellation is ready to capture.
-    let onDwell: (String?, Double) -> Void
+    /// The constellation being aimed at and how far collecting it has got, or nil when none is.
+    /// At progress 1 it's ready to capture.
+    let onTarget: (SkyTarget?) -> Void
     /// Bump to capture the constellation whose ring is full (the capture button).
     var captureCount = 0
     /// Fired when a ready constellation is captured.
@@ -48,6 +48,7 @@ struct SkySceneView: UIViewRepresentable {
             view.pointOfView = c.virtualCamera
             view.scene?.rootNode.addChildNode(c.virtualCamera)
             c.addGround()
+            // Developer fallback for the simulator only: drag to look around. No on-screen hint.
             view.addGestureRecognizer(UIPanGestureRecognizer(target: c, action: #selector(Coordinator.handlePan(_:))))
         }
 
@@ -65,7 +66,7 @@ struct SkySceneView: UIViewRepresentable {
         view.isHidden = hidden
         view.isPlaying = !hidden
         c.onTap = onTap
-        c.onDwell = onDwell
+        c.onTarget = onTarget
         c.onDiscover = onDiscover
         c.discovered = discovered
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
@@ -87,6 +88,7 @@ struct SkySceneView: UIViewRepresentable {
         let placed: PlacedConstellation
         let core: SCNMaterial
         let center: SIMD3<Float>
+        let figure: TargetFigure
         let lines: SCNNode
         let stars: SCNNode
         let label: SCNNode
@@ -96,19 +98,17 @@ struct SkySceneView: UIViewRepresentable {
     final class Coordinator: NSObject {
         let useAR: Bool
         var onTap: (PlacedConstellation) -> Void
-        var onDwell: (String?, Double) -> Void = { _, _ in }
+        var onTarget: (SkyTarget?) -> Void = { _ in }
         var onDiscover: (PlacedConstellation) -> Void = { _ in }
         var discovered: Set<String> = []
         var lastCaptureCount = 0
         weak var view: SCNView?
 
-        // Discovering: hold within `dwellAngle` of a constellation for `dwellNeeded` seconds,
-        // then press capture.
-        private var dwellName: String?
-        private var dwellTime: Double = 0
-        private var lastReported: Double = -1
-        private let dwellNeeded: Double = 1.5
-        private let dwellAngle: Float = 10 * .pi / 180
+        // Targeting and collecting (thresholds live in TargetingTuning). A full ring waits
+        // for the capture button.
+        private var tracker = TargetTracker()
+        private var lastReported: SkyTarget?
+        private var lastTick: CFTimeInterval?
 
         let skyRoot = SCNNode()                 // everything in the sky hangs off this
         private let constellationRoot = SCNNode()
@@ -176,7 +176,7 @@ struct SkySceneView: UIViewRepresentable {
                 constellationRoot.addChildNode(node)
                 drawn.append(parts)
             }
-            updateFocus()
+            updateFocus(dt: nil)
         }
 
         private func makeNode(for c: PlacedConstellation) -> (SCNNode, DrawnConstellation) {
@@ -233,7 +233,8 @@ struct SkySceneView: UIViewRepresentable {
                 artNode = mesh
             }
 
-            return (node, DrawnConstellation(placed: c, core: core, center: c.center,
+            let figure = TargetFigure(id: c.id, name: c.name, center: c.center, segments: c.segments)
+            return (node, DrawnConstellation(placed: c, core: core, center: c.center, figure: figure,
                                              lines: lines, stars: stars, label: label, art: artNode))
         }
 
@@ -263,57 +264,55 @@ struct SkySceneView: UIViewRepresentable {
 
         // MARK: - Discovering: hold on a constellation
 
-        private func updateDwell(dt: Double) {
+        private func updateTarget(dt: Double) {
             guard let camera = view?.pointOfView else { return }
             let forward = camera.simdWorldFront
+            let figures = drawn.filter { $0.placed.centerAlt > TargetingTuning.minAltitude }.map(\.figure)
+            let candidates = ConstellationTargeting.candidates(for: forward, among: figures) {
+                !self.discovered.contains($0.name)
+            }
+            tracker.update(candidates: candidates, dt: dt)
 
-            // closest undiscovered constellation near the middle of the screen
-            var target: DrawnConstellation?
-            var bestAngle = dwellAngle
-            for i in 0..<drawn.count {
-                let d = drawn[i]
-                guard !discovered.contains(d.placed.name), d.placed.centerAlt > -5 else { continue }
-                let angle = acos(max(-1, min(1, simd_dot(forward, d.center))))
-                if angle < bestAngle {
-                    bestAngle = angle
-                    target = d
-                }
-            }
-
-            guard let target else {
-                if dwellName != nil {
-                    dwellName = nil
-                    dwellTime = 0
-                    lastReported = -1
-                    onDwell(nil, 0)
-                }
-                return
-            }
-
-            if target.placed.name != dwellName {
-                dwellName = target.placed.name
-                dwellTime = 0
-            }
-            dwellTime += dt
-            let progress = min(1, dwellTime / dwellNeeded)
-            if abs(progress - lastReported) >= 0.04 || (progress >= 1 && lastReported < 1) {
-                lastReported = progress
-                onDwell(target.placed.name, progress)
-            }
+            report(currentTarget())
         }
 
-        /// Captures the constellation being held on, if its ring is full.
+        /// Captures the targeted constellation if it's undiscovered and its ring is full.
         func capture() {
-            guard let name = dwellName, dwellTime >= dwellNeeded,
-                  let target = drawn.first(where: { $0.placed.name == name }) else { return }
-            discovered.insert(name)
+            guard let id = tracker.currentID, tracker.progressID == id, tracker.progress >= 1,
+                  let target = drawn.first(where: { $0.placed.id == id }),
+                  !discovered.contains(target.placed.name) else { return }
+            discovered.insert(target.placed.name)
             refreshDiscoveredColors()
             celebrate(at: target.center)
-            dwellName = nil
-            dwellTime = 0
-            lastReported = -1
-            onDwell(nil, 0)
+            tracker.clearProgress()
+            report(nil)
             onDiscover(target.placed)
+        }
+
+        /// The ring's content: the targeted constellation, or the one whose progress is still draining.
+        private func currentTarget() -> SkyTarget? {
+            if let id = tracker.currentID, let d = drawn.first(where: { $0.placed.id == id }) {
+                let collected = discovered.contains(d.placed.name)
+                let progress = tracker.progressID == id ? tracker.progress : 0
+                return SkyTarget(name: d.placed.name, progress: collected ? 0 : progress, isCollected: collected)
+            }
+            if let id = tracker.progressID, let d = drawn.first(where: { $0.placed.id == id }) {
+                return SkyTarget(name: d.placed.name, progress: tracker.progress, isCollected: false)
+            }
+            return nil
+        }
+
+        /// Tells SwiftUI only about changes it can see (progress in ~4% steps, and always
+        /// the moment the ring becomes full or stops being full, which toggles the capture button).
+        private func report(_ target: SkyTarget?) {
+            if let target, let last = lastReported, target.name == last.name,
+               target.isCollected == last.isCollected, (target.progress >= 1) == (last.progress >= 1),
+               abs(target.progress - last.progress) < 0.04 {
+                return
+            }
+            guard target != lastReported else { return }
+            lastReported = target
+            onTarget(target)
         }
 
         /// Expanding golden ring where a constellation was just discovered.
@@ -333,23 +332,33 @@ struct SkySceneView: UIViewRepresentable {
 
         // MARK: - Focus: light up what you're pointing at
 
-        private func updateFocus() {
+        /// The target is fully lit and shows its artwork; with a target, everything else dims.
+        /// `dt` nil snaps straight to the goal (after a rebuild).
+        private func updateFocus(dt: Double?) {
             guard let camera = view?.pointOfView else { return }
             let forward = camera.simdWorldFront
+            let targetID = tracker.currentID
+            let dim: CGFloat = targetID == nil ? 1 : TargetingTuning.dimFactor
+            let ease = dt.map { min(1, CGFloat($0) * TargetingTuning.highlightSpeed) } ?? 1
 
             for i in 0..<drawn.count {
                 let d = drawn[i]
-                // 1 when dead centre, 0 when ~35° or more away
-                let angle = acos(max(-1, min(1, simd_dot(forward, d.center))))
-                let t = max(0, min(1, 1 - angle / (35 * .pi / 180)))
-                let focus = CGFloat(t * t * (3 - 2 * t))  // smoothstep
-
-                d.lines.opacity = 0.3 + 0.7 * focus
-                d.stars.opacity = 0.65 + 0.35 * focus
-                d.label.opacity = 0.12 + 0.78 * focus
-                // the illustration only appears when you're pointing right at it (within ~12°)
-                let a = max(0, min(1, 1 - angle / (12 * .pi / 180)))
-                d.art?.opacity = CGFloat(a * a * (3 - 2 * a)) * 0.55
+                let goal: (lines: CGFloat, stars: CGFloat, label: CGFloat, art: CGFloat)
+                if d.placed.id == targetID {
+                    goal = (1, 1, 1, 0.55)
+                } else {
+                    // ambient fade: 1 when dead centre, 0 when ~35° or more away
+                    let angle = ConstellationTargeting.angle(forward, d.center)
+                    let t = max(0, min(1, 1 - angle / (35 * .pi / 180)))
+                    let focus = CGFloat(t * t * (3 - 2 * t))  // smoothstep
+                    goal = ((0.3 + 0.7 * focus) * dim, (0.65 + 0.35 * focus) * dim, (0.12 + 0.6 * focus) * dim, 0)
+                }
+                d.lines.opacity += (goal.lines - d.lines.opacity) * ease
+                d.stars.opacity += (goal.stars - d.stars.opacity) * ease
+                d.label.opacity += (goal.label - d.label.opacity) * ease
+                if let art = d.art {
+                    art.opacity += (goal.art - art.opacity) * ease
+                }
             }
         }
 
@@ -616,7 +625,8 @@ struct SkySceneView: UIViewRepresentable {
             if let best { onTap(best) }
         }
 
-        /// Virtual sky only: drag to look around.
+        /// Virtual sky only (simulator, no AR): drag to look around. A silent developer fallback
+        /// so the sky can be tested without a device; the UI never mentions it.
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             let t = gesture.translation(in: gesture.view)
             gesture.setTranslation(.zero, in: gesture.view)
@@ -629,7 +639,7 @@ struct SkySceneView: UIViewRepresentable {
             virtualCamera.eulerAngles = SCNVector3(pitch, yaw, 0)
         }
 
-        // MARK: - Every frame: follow the camera (AR) and update the focus glow
+        // MARK: - Every frame: follow the camera (AR), update the target and the focus glow
 
         func startTimer() {
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
@@ -640,6 +650,7 @@ struct SkySceneView: UIViewRepresentable {
         func stopTimer() {
             timer?.invalidate()
             timer = nil
+            lastTick = nil
         }
 
         private func tick() {
@@ -647,8 +658,11 @@ struct SkySceneView: UIViewRepresentable {
                 // Stars are "infinitely" far away, so the sky moves with you.
                 skyRoot.simdPosition = camera.simdWorldPosition
             }
-            updateFocus()
-            updateDwell(dt: 1.0 / 30.0)
+            let now = CACurrentMediaTime()
+            let dt = min(0.1, now - (lastTick ?? now - 1.0 / 30.0))  // capped so a stall can't collect
+            lastTick = now
+            updateTarget(dt: dt)
+            updateFocus(dt: dt)
         }
     }
 }

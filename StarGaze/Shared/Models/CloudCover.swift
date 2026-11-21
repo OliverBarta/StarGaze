@@ -1,0 +1,21 @@
+//
+//  CloudCover.swift
+//  StarGaze
+//
+
+import Foundation
+
+/// How much of the photographed sky is covered by cloud. Raw values match Gemini's JSON and the database.
+nonisolated enum CloudCover: String, Codable, CaseIterable, Sendable {
+    case none
+    case partial
+    case overcast
+
+    var label: String {
+        switch self {
+        case .none: "Clear"
+        case .partial: "Partly cloudy"
+        case .overcast: "Overcast"
+        }
+    }
+}
