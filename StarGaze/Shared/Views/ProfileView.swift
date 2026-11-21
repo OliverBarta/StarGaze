@@ -26,6 +26,15 @@ struct ProfileView: View {
 
                 Spacer(minLength: Metrics.xLarge)
 
+                NavigationLink {
+                    SkyReadingTestView()
+                } label: {
+                    Label("Analyze a sky photo", systemImage: "camera.viewfinder")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
                 Button(role: .destructive) {
                     Task { await auth.logout() }
                 } label: {

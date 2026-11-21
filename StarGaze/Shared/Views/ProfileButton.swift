@@ -19,7 +19,7 @@ struct ProfileButton: View {
         .accessibilityLabel("Profile")
         .sheet(isPresented: $isShowingProfile) {
             ProfileView()
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
         }
     }
 }

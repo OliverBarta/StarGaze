@@ -4,7 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-StarGaze is a SwiftUI iOS app (iPhone + iPad), built at Hack Western 13. It has four tabs: an AR star map that identifies constellations and records "discoveries", a light-pollution/cloud map that suggests stargazing spots, a Strava-style friends feed and leaderboard, and a collection of discovered constellation cards. See `README.md` for the product overview and data credits.
+StarGaze is a SwiftUI iOS app (iPhone + iPad), built at Hack Western 13. It's a citizen-science game: players collect constellations, and every find also measures light pollution, so together they build a real ground-level light-pollution map. See `README.md` for data credits.
+
+How a find works:
+1. The user points the phone at the sky. The Stars tab draws the real sky over the camera and identifies constellations from location, compass and motion.
+2. Holding steady on a constellation collects it. At that moment the app captures one camera frame of the sky automatically; the user never decides to take a photo.
+3. Gemini checks the photo and returns structured JSON (night sky?, cloud cover, obstructions, estimated visible stars, a Bortle-like 1–9 brightness, confidence, reason).
+4. The find gets a level. **Spotted**: night sky, not overcast, at least 3 stars visible; double rarity points and a gold stamp. **Located**: everything else (bright city sky, no camera, bad photo); base rarity points.
+5. Each measurement is saved locally as a `SkyReading` (location rounded to ~1 km, time, pitch, heading, exposure, Gemini result, level) so it can be uploaded later. Later, readings will appear on the light-pollution map as "Measured by StarGaze users" next to the satellite estimate.
+
+**Identification is sensor-based (location + compass + motion), never Gemini.** Gemini only does photo quality control for sky readings (plus the optional constellation descriptions in the info sheet).
+
+Tabs:
+- **Stars**: find and collect constellations.
+- **Light Pollution**: satellite and (later) user-measured maps, and dark spots for tonight.
+- **Friends**: feed of friends' finds and the weekly leaderboard.
+- **Collection**: your finds, completed sets and stamps.
+
+Backend: a teammate is building the Supabase database on another branch. Keep new data local and upload-ready; don't add Supabase code here.
 
 ## Build
 
@@ -42,7 +59,7 @@ Code is organized as `App/` (entry and root navigation), `Features/<Feature>/` (
 
 **Discoveries and sets** (`Shared/Data/DiscoveryStore.swift`). This is the core game state, saved to `UserDefaults` as JSON. `SkyScreen` calls `store.discover(name, place:)` when a constellation stays in view. Discovering checks the sets in `ConstellationSet.all` (`Features/StarMap/Models/ConstellationSets.swift`). When a set reaches `required` finds, the store stamps those discoveries and queues a `Completion` for `ContentView` to play. `store.cards` builds the `CaptureCardContent` list shown in Collection. `cutsceneOnEveryFind` and `testHero` are testing toggles and should stay `false`/`nil` when committed.
 
-**Star map** (`Features/StarMap/`). `SkyScreen` → `SkySceneView`, a `UIViewRepresentable` around SceneKit. On devices that support `ARWorldTrackingConfiguration` it uses an `ARSCNView` aligned to gravity and true heading. In the simulator it shows a draggable virtual sky. `Astronomy`/`SkyModel` convert RA/Dec to alt/az for the current location and time. Catalog data comes from bundled JSON (`Data/constellations.json` and `stars.json` from d3-celestial). `SkyArt` loads `constellation-art.json`, which pins each Stellarium illustration (`Data/Art/art-*.jpg`) to three anchor stars. `GeminiService` fetches constellation descriptions from the Gemini REST API (`gemini-3.5-flash-lite`) and caches them in memory.
+**Star map** (`Features/StarMap/`). `SkyScreen` → `SkySceneView`, a `UIViewRepresentable` around SceneKit. On devices that support `ARWorldTrackingConfiguration` it uses an `ARSCNView` aligned to gravity and true heading. In the simulator it shows a draggable virtual sky. `Astronomy`/`SkyModel` convert RA/Dec to alt/az for the current location and time. Catalog data comes from bundled JSON (`Data/constellations.json` and `stars.json` from d3-celestial). `SkyArt` loads `constellation-art.json`, which pins each Stellarium illustration (`Data/Art/art-*.jpg`) to three anchor stars. `GeminiService` (Gemini REST API, `gemini-3.5-flash-lite`) has two jobs: `describe(constellation:)` for the info sheet (cached in memory), and `analyzeSky(_:)`, the photo quality check that returns a validated `SkyAnalysis` (JSON-only via `responseSchema`, image downscaled to 1024px). `FindLevel(analysis:)` is the single Spotted/Located rule. Profile → "Analyze a sky photo" (`SkyReadingTestView`) runs the check on library photos for testing and indoor demos; library photos never count as map measurements.
 
 **Light pollution / spots** (`Features/LightPollution/`). `LightPollutionService` loads 5°×5° sky-brightness tiles: bundled `LightTiles/*.bin` first, then a disk cache, then an optional remote URL (`remoteBaseURL`, nil by default). The tile binary format is documented at the top of that file and must match the offline `make_light_tiles.py` preprocessing script, which is not in this repo. Keep the `Bortle` thresholds in sync with that script too. `TonightConditionsService` calculates sun and moon positions on the device and fetches cloud cover from Open-Meteo (no API key, 30-minute cache), then scores spots for tonight. `StargazingSpotsView` and `LightPollutionMapView` (MapKit) show the results, and `SpotDetailView` shows details for one spot.
 
