@@ -23,6 +23,10 @@ final class DiscoveryStore {
     private(set) var completedSetIDs: Set<String> = []
     /// Cutscenes to play, in order.
     var pendingCompletions: [Completion] = []
+    /// True while a sky photo is being taken, so a set cutscene waits until the shutter fires.
+    var holdsCutscenes = false
+    /// The cutscene to show now, if any (nil while held).
+    var cutsceneToPlay: Completion? { holdsCutscenes ? nil : pendingCompletions.first }
     /// Stamps that should "slam" in the next time the collection appears.
     var freshStamps: Set<String> = []
 

@@ -23,11 +23,12 @@ struct SkyScreen: View {
     @State private var infoTarget: InfoTarget?
     @State private var captureCount = 0
     @State private var showHint = true
+    @State private var photo = SkyPhotoSession()
 
     /// The ring is full, so the capture button is enabled.
     private var canCapture: Bool {
         guard let target else { return false }
-        return !target.isCollected && target.progress >= 1
+        return !target.isCollected && target.progress >= 1 && !photo.isBusy
     }
 
     // Simulators have no camera or compass, so they get a virtual sky instead
@@ -51,14 +52,15 @@ struct SkyScreen: View {
                 },
                 onTarget: { target = $0 },
                 captureCount: captureCount,
-                onDiscover: { c in
-                    if store.discover(c.name, place: location.placeName) {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        showToast("✦ Discovered \(c.name)")
-                    }
+                arPaused: photo.arPaused,
+                onDiscover: { c, camera in
+                    collect(c, camera: camera)
                 }
             )
             .ignoresSafeArea()
+
+            SkyPhotoOverlay(phase: photo.phase, shutterCount: photo.shutterCount,
+                            debugSummary: photo.debugSummary)
 
             // what you're aiming at: a fill-up ring while collecting, a seal if already collected
             if let target {
@@ -99,13 +101,13 @@ struct SkyScreen: View {
         }
         .onChange(of: location.latitude) { _, _ in recalculate() }
         // pause the sky while a cutscene is playing (once the cutscene has faded in over it)
-        .onChange(of: store.pendingCompletions.isEmpty) { _, empty in
-            if empty {
+        .onChange(of: store.cutsceneToPlay == nil) { _, none in
+            if none {
                 skyHidden = false
             } else {
                 Task {
                     try? await Task.sleep(for: .seconds(0.45))
-                    if !store.pendingCompletions.isEmpty { skyHidden = true }
+                    if store.cutsceneToPlay != nil { skyHidden = true }
                 }
             }
         }
@@ -132,6 +134,25 @@ struct SkyScreen: View {
         .opacity(canCapture ? 1 : 0.35)
         .accessibilityLabel(canCapture ? "Capture \(target?.name ?? "")" : "Capture")
         .padding(.top, 8)
+    }
+
+    /// Collects instantly, then takes the sky photo in the background (real camera only).
+    /// A set cutscene triggered by this find waits until the shutter has fired.
+    private func collect(_ c: PlacedConstellation, camera: ARCameraSnapshot?) {
+        let willShoot = camera != nil && SkyPhotoSession.canShoot && !photo.isBusy
+        if willShoot { store.holdsCutscenes = true }
+        guard store.discover(c.name, place: location.placeName) else {
+            store.holdsCutscenes = false
+            return
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        showToast("✦ Discovered \(c.name)")
+
+        guard willShoot, let camera else { return }
+        let context = SkyShotContext(constellationID: c.id, constellationName: c.name,
+                                     latitude: location.latitude, longitude: location.longitude,
+                                     takenAt: .now, arCamera: camera)
+        photo.shoot(context) { store.holdsCutscenes = false }
     }
 
     private func showToast(_ text: String) {

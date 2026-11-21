@@ -22,8 +22,11 @@ struct SkySceneView: UIViewRepresentable {
     let onTarget: (SkyTarget?) -> Void
     /// Bump to capture the constellation whose ring is full (the capture button).
     var captureCount = 0
-    /// Fired when a ready constellation is captured.
-    let onDiscover: (PlacedConstellation) -> Void
+    /// Pauses the ARSession (camera released) while the sky photo is taken; false resumes it.
+    var arPaused = false
+    /// Fired when a ready constellation is captured, with where ARKit's camera was pointing
+    /// (nil without AR).
+    let onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(useAR: useAR, onTap: onTap)
@@ -40,6 +43,7 @@ struct SkySceneView: UIViewRepresentable {
             let config = ARWorldTrackingConfiguration()
             config.worldAlignment = .gravityAndHeading  // -z = true north, +y = up
             ar.session.run(config)
+            c.arConfiguration = config
             view = ar
         } else {
             view = SCNView()
@@ -71,6 +75,7 @@ struct SkySceneView: UIViewRepresentable {
         c.discovered = discovered
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
+        c.setARPaused(arPaused)
         if captureCount != c.lastCaptureCount {
             c.lastCaptureCount = captureCount
             // after this update pass, since capturing changes SwiftUI state
@@ -99,7 +104,9 @@ struct SkySceneView: UIViewRepresentable {
         let useAR: Bool
         var onTap: (PlacedConstellation) -> Void
         var onTarget: (SkyTarget?) -> Void = { _ in }
-        var onDiscover: (PlacedConstellation) -> Void = { _ in }
+        var onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void = { _, _ in }
+        var arConfiguration: ARWorldTrackingConfiguration?
+        private var arIsPaused = false
         var discovered: Set<String> = []
         var lastCaptureCount = 0
         weak var view: SCNView?
@@ -286,7 +293,26 @@ struct SkySceneView: UIViewRepresentable {
             celebrate(at: target.center)
             tracker.clearProgress()
             report(nil)
-            onDiscover(target.placed)
+            onDiscover(target.placed, arCameraSnapshot())
+        }
+
+        /// The AR camera's pose and intrinsics right now, or nil without AR.
+        private func arCameraSnapshot() -> ARCameraSnapshot? {
+            guard let camera = (view as? ARSCNView)?.session.currentFrame?.camera else { return nil }
+            return ARCameraSnapshot(transform: camera.transform, intrinsics: camera.intrinsics,
+                                    imageResolution: camera.imageResolution)
+        }
+
+        /// Hands the camera to the sky photo and back. Resuming reuses the same configuration
+        /// without resetting tracking, so the sky stays where it was.
+        func setARPaused(_ paused: Bool) {
+            guard paused != arIsPaused, let ar = view as? ARSCNView, let arConfiguration else { return }
+            arIsPaused = paused
+            if paused {
+                ar.session.pause()
+            } else {
+                ar.session.run(arConfiguration)
+            }
         }
 
         /// The ring's content: the targeted constellation, or the one whose progress is still draining.

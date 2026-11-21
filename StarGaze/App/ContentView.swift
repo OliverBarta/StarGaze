@@ -35,7 +35,7 @@ struct ContentView: View {
             }
 
             // Set-complete cutscene plays over everything, then jumps to the collection.
-            if let completion = store.pendingCompletions.first {
+            if let completion = store.cutsceneToPlay {
                 cutscene(for: completion)
                     .id(completion.id)
                 .transition(.opacity)
