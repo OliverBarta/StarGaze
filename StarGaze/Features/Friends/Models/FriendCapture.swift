@@ -11,14 +11,13 @@ struct FriendCapture: Identifiable, Hashable {
     var constellationName: String
     var locationName: String
     var date: Date
-    var isFirstFind: Bool
 
     var rarity: Rarity {
         Rarity.forConstellation(constellationName)
     }
 
-    /// Rarity points, doubled when this friend was the first in the group to find the constellation.
+    /// The constellation's rarity points.
     var points: Int {
-        isFirstFind ? rarity.points * 2 : rarity.points
+        rarity.points
     }
 }

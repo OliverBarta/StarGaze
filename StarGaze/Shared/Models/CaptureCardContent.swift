@@ -13,5 +13,4 @@ struct CaptureCardContent {
     var image: Image?
     var rarity: Rarity
     var points: Int
-    var isFirstFind: Bool
 }

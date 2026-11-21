@@ -15,9 +15,15 @@ struct FriendStanding: Identifiable, Hashable {
     }
 
     /// Totals each friend's points for captures on or after `startDate`, highest first.
+    /// Each constellation counts once per friend in that window, so rescanning it adds nothing.
     static func ranked(from captures: [FriendCapture], since startDate: Date) -> [FriendStanding] {
-        let recent = captures.filter { $0.date >= startDate }
-        let byFriend = Dictionary(grouping: recent, by: \.friend.id)
+        var seen = Set<String>()
+        let counted = captures.filter { capture in
+            guard capture.date >= startDate else { return false }
+            let key = "\(capture.friend.id)|\(ConstellationName.normalizedKey(for: capture.constellationName))"
+            return seen.insert(key).inserted
+        }
+        let byFriend = Dictionary(grouping: counted, by: \.friend.id)
 
         let totals: [(friend: Friend, points: Int)] = byFriend.values.compactMap { friendCaptures in
             guard let friend = friendCaptures.first?.friend else { return nil }

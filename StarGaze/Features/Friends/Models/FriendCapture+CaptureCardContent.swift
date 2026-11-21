@@ -15,8 +15,7 @@ extension FriendCapture {
             date: date,
             image: catalog.image(for: constellationName),
             rarity: rarity,
-            points: points,
-            isFirstFind: isFirstFind
+            points: points
         )
     }
 }

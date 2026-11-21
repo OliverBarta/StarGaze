@@ -15,7 +15,7 @@ struct AssetConstellationCatalog: ConstellationCatalog {
     }
 
     static func assetName(for constellationName: String) -> String {
-        let words = constellationName.lowercased().split(whereSeparator: \.isWhitespace)
-        return "constellation-" + words.joined(separator: "-")
+        let key = ConstellationName.normalizedKey(for: constellationName)
+        return "constellation-" + key.replacingOccurrences(of: " ", with: "-")
     }
 }

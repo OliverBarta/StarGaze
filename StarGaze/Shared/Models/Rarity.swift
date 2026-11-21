@@ -43,7 +43,7 @@ enum Rarity: CaseIterable {
     /// Temporary hardcoded lookup until rarity comes from real data. Unknown names are uncommon.
     /// Matching ignores case and surrounding whitespace.
     static func forConstellation(_ name: String) -> Rarity {
-        lookup[name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] ?? .uncommon
+        lookup[ConstellationName.normalizedKey(for: name)] ?? .uncommon
     }
 
     private static let lookup: [String: Rarity] = [

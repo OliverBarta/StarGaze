@@ -56,12 +56,6 @@ struct CaptureCardView<Header: View>: View {
 
         return layout {
             RarityLabel(rarity: content.rarity)
-            if content.isFirstFind {
-                Label("First find", systemImage: "sparkle")
-                    .font(.caption)
-                    .imageScale(.small)
-                    .foregroundStyle(.purple)
-            }
             if !isAccessibilitySize {
                 Spacer(minLength: 0)
             }
@@ -97,8 +91,7 @@ private extension CaptureCardContent {
         locationName: "Komoka Provincial Park",
         date: .now.addingTimeInterval(-2 * 3600),
         rarity: .uncommon,
-        points: 50,
-        isFirstFind: true
+        points: 25
     )
 
     static let olderSample = CaptureCardContent(
@@ -106,8 +99,7 @@ private extension CaptureCardContent {
         locationName: "Pinery Provincial Park",
         date: Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now,
         rarity: .legendary,
-        points: 100,
-        isFirstFind: false
+        points: 100
     )
 
     static func sample(_ rarity: Rarity) -> CaptureCardContent {
@@ -116,8 +108,7 @@ private extension CaptureCardContent {
             locationName: "Fanshawe Conservation Area",
             date: .now.addingTimeInterval(-5 * 3600),
             rarity: rarity,
-            points: rarity.points,
-            isFirstFind: false
+            points: rarity.points
         )
     }
 }
@@ -162,13 +153,6 @@ private extension CaptureCardContent {
         .padding(Metrics.large)
     }
     .background(Color(.systemGroupedBackground))
-}
-
-#Preview("First find") {
-    CaptureCardView(content: .recentSample)
-        .padding(Metrics.large)
-        .frame(maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
 }
 
 #Preview("Dark") {
