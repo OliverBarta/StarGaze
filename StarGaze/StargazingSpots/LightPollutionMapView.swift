@@ -191,8 +191,11 @@ struct LightPollutionMapView: UIViewRepresentable {
             let spotIDs = parent.spots.map(\.id)
             let extraFavorites = parent.favorites.filter { !spotIDs.contains($0.id) }
             let testCentre = parent.isTestLocation ? parent.centre : nil
-            let key = spotIDs.joined(separator: "|") + "#" + extraFavorites.map(\.id).joined(separator: "|")
-                + "#" + (testCentre.map { "\($0.latitude),\($0.longitude)" } ?? "")
+            let spotPart: String = spotIDs.joined(separator: "|")
+            let favoritePart: String = extraFavorites.map(\.id).joined(separator: "|")
+            var testPart = ""
+            if let testCentre { testPart = "\(testCentre.latitude),\(testCentre.longitude)" }
+            let key = [spotPart, favoritePart, testPart].joined(separator: "#")
             guard key != annotationKey else { return }
             annotationKey = key
 

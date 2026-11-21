@@ -283,12 +283,6 @@ struct StargazingSpotsView: View {
             }
             .accessibilityLabel("Map layers")
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button { showFavorites = true } label: {
-                Image(systemName: favorites.spots.isEmpty ? "star" : "star.fill")
-            }
-            .accessibilityLabel("Favourites")
-        }
     }
 
     // MARK: - Sheets
