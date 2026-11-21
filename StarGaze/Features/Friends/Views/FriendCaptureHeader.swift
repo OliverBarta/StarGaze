@@ -24,7 +24,7 @@ struct FriendCaptureHeader: View {
 #Preview("Friend without avatar") {
     let capture = MockFriendsDataSource.sampleCaptures[1]
     ScrollView {
-        CaptureCardView(content: capture.cardContent(using: AssetConstellationCatalog())) {
+        CaptureCardView(content: capture.cardContent(using: JSONConstellationCatalog())) {
             FriendCaptureHeader(friend: capture.friend)
         }
         .padding(Metrics.large)

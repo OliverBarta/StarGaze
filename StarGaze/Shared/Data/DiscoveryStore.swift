@@ -118,7 +118,7 @@ final class DiscoveryStore {
 
     /// Cards for the Collection tab, stamped ones from the latest set first.
     var cards: [CaptureCardContent] {
-        let catalog = AssetConstellationCatalog()
+        let catalog = JSONConstellationCatalog()
         var list = Array(discoveries.values)
         list.sort { a, b in
             let aFresh = freshStamps.contains(a.name), bFresh = freshStamps.contains(b.name)

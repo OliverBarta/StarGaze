@@ -20,7 +20,7 @@ final class FriendsViewModel {
     private let dataSource: any FriendsDataSource
     private let catalog: any ConstellationCatalog
 
-    init(dataSource: any FriendsDataSource, catalog: any ConstellationCatalog = AssetConstellationCatalog()) {
+    init(dataSource: any FriendsDataSource, catalog: any ConstellationCatalog = JSONConstellationCatalog()) {
         self.dataSource = dataSource
         self.catalog = catalog
     }

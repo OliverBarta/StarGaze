@@ -8,11 +8,17 @@ import SwiftUI
 struct CaptureImageView: View {
     let image: Image?
 
+    /// The constellation PNGs' background colour, so the side borders blend into the image.
+    private static let borderColor = Color(red: 11 / 255, green: 16 / 255, blue: 32 / 255)
+
     var body: some View {
         if let image {
+            // Fit the whole (square) image and fill the leftover space with borders.
             image
                 .resizable()
-                .scaledToFill()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Self.borderColor)
         } else {
             placeholder
         }

@@ -100,7 +100,7 @@ struct CollectionView: View {
 extension CaptureCardContent {
     /// Placeholder captures until the collection has real data.
     static var collectionSamples: [CaptureCardContent] {
-        let catalog = AssetConstellationCatalog()
+        let catalog = JSONConstellationCatalog()
         let finds: [(name: String, location: String, daysAgo: Int)] = [
             ("Orion", "Fanshawe Conservation Area", 1),
             ("Camelopardalis", "Pinery Provincial Park", 3),
