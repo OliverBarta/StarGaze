@@ -13,8 +13,7 @@ struct InfoTarget: Identifiable {
 struct SkyScreen: View {
     @Environment(DiscoveryStore.self) private var store
     @State private var location = LocationProvider()
-    @State private var dwellName: String?
-    @State private var dwellProgress = 0.0
+    @State private var target: SkyTarget?
     @State private var toast: String?
     @State private var skyHidden = false
     @State private var placed: [PlacedConstellation] = []
@@ -41,10 +40,7 @@ struct SkyScreen: View {
                 onTap: { c in
                     infoTarget = InfoTarget(id: c.id, name: c.name, directionText: c.directionText)
                 },
-                onDwell: { name, progress in
-                    dwellName = name
-                    dwellProgress = progress
-                },
+                onTarget: { target = $0 },
                 onDiscover: { c in
                     if store.discover(c.name, place: location.placeName) {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -54,26 +50,11 @@ struct SkyScreen: View {
             )
             .ignoresSafeArea()
 
-            // fill-up ring while you hold on a constellation
-            if let dwellName {
-                VStack(spacing: 8) {
-                    ZStack {
-                        Circle().stroke(.white.opacity(0.2), lineWidth: 3)
-                        Circle()
-                            .trim(from: 0, to: dwellProgress)
-                            .stroke(Color(red: 1, green: 0.8, blue: 0.4),
-                                    style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .animation(.linear(duration: 0.1), value: dwellProgress)
-                    }
-                    .frame(width: 58, height: 58)
-                    Text(dwellName.uppercased())
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .kerning(3)
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-                .allowsHitTesting(false)
-                .transition(.opacity)
+            // what you're aiming at: a fill-up ring while collecting, a seal if already collected
+            if let target {
+                TargetRingView(target: target)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
             }
 
             VStack {
@@ -91,7 +72,7 @@ struct SkyScreen: View {
             }
             .padding()
             .animation(.spring(response: 0.4), value: toast)
-            .animation(.easeOut(duration: 0.2), value: dwellName)
+            .animation(.easeOut(duration: 0.2), value: target?.name)
 
             #if DEBUG
             // Testing helper: wipe discoveries so you can replay the cutscenes.
