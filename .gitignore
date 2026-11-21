@@ -50,3 +50,8 @@ GoogleService-Info.plist
 
 # Gemini API key (share privately, never commit)
 StarGaze/Config/Secrets.swift
+# Light-pollution preprocessing (keep out of the app repo)
+venv/
+*.tif
+ne_10m_*
+previews/
