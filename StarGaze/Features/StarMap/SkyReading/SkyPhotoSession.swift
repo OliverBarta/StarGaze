@@ -95,14 +95,9 @@ final class SkyPhotoSession {
                                                              limit: SkyReadingTuning.contextStarCount),
             detectedStars: detected?.starCount
         )
-        let upright = Self.uprightImage(of: photo)
-        #if DEBUG
-        // Running from Xcode: save the photo and Gemini's copy to Photos (doesn't hold up the check).
-        Task { await DebugPhotoSaver.save(photo, geminiImage: upright) }
-        #endif
         let analysis: SkyAnalysis?
         do {
-            analysis = try await gemini.analyzeSky(upright, context: context,
+            analysis = try await gemini.analyzeSky(Self.uprightImage(of: photo), context: context,
                                                    timeout: SkyReadingTuning.geminiTimeoutSeconds)
         } catch {
             logger.error("Gemini sky check failed: \(String(describing: error))")
