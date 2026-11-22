@@ -3,14 +3,12 @@ import Observation
 import UIKit
 import os
 
-/// Runs the sky photo after a capture: countdown, pause ARKit, shoot, resume ARKit, then analyze
+/// Runs the sky photo after a capture: countdown, pause the camera preview, shoot, resume it, then analyze
 /// in the background (star detection, then Gemini's quality check). SkyScreen collects the
 /// constellation (or not) once the reading is back.
 @Observable
 final class SkyPhotoSession {
     private(set) var phase: SkyPhotoPhase = .idle
-    /// SkySceneView pauses its ARSession while this is true, so the camera is free.
-    private(set) var arPaused = false
     /// Bumps when the shutter has fired (drives the flash).
     private(set) var shutterCount = 0
     /// Analyses still running. They don't block the next photo.
@@ -53,8 +51,9 @@ final class SkyPhotoSession {
         }
         phase = .countdown(1)
         motion.start()
-        arPaused = true
-        try? await Task.sleep(for: SkyReadingTuning.arReleaseDelay)
+        // only one session can own the camera: stop the live preview and wait until it has
+        await CameraPreviewSession.shared.pauseForPhoto()
+        try? await Task.sleep(for: SkyReadingTuning.cameraReleaseDelay)
         phase = .shooting
 
         let photo: SkyPhoto
@@ -66,13 +65,13 @@ final class SkyPhotoSession {
         } catch {
             logger.error("Sky photo failed: \(String(describing: error))")
             _ = motion.stop()
-            arPaused = false
+            CameraPreviewSession.shared.resumeAfterPhoto()
             onShutter()
             phase = .idle
             onDone(nil)
             return
         }
-        arPaused = false
+        CameraPreviewSession.shared.resumeAfterPhoto()
         shutterCount += 1
         onShutter()
         phase = .idle

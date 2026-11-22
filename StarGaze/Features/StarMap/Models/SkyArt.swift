@@ -70,6 +70,46 @@ enum SkyArt {
         return image
     }
 
+    private static var glowCache: [String: UIImage] = [:]
+
+    /// The illustration as white light whose opacity is its brightness: black is fully transparent.
+    /// Used over the live camera feed, where the SceneKit view is transparent and black pixels would
+    /// otherwise show as a dark square (additive blending only hides black over an opaque background).
+    static func glowImage(named file: String) -> UIImage? {
+        if let cached = glowCache[file] { return cached }
+        guard let url = Bundle.main.url(forResource: file, withExtension: "jpg"),
+              let cg = UIImage(contentsOfFile: url.path)?.cgImage else { return nil }
+        let w = cg.width, h = cg.height
+        // brightness of each pixel
+        var gray = [UInt8](repeating: 0, count: w * h)
+        let drewGray = gray.withUnsafeMutableBytes { buffer -> Bool in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                      bytesPerRow: w, space: CGColorSpaceCreateDeviceGray(),
+                                      bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drewGray else { return nil }
+        // premultiplied white at that opacity: (g, g, g, g)
+        var rgba = [UInt8](repeating: 0, count: w * h * 4)
+        for i in 0..<(w * h) {
+            let g = gray[i]
+            rgba[i * 4] = g
+            rgba[i * 4 + 1] = g
+            rgba[i * 4 + 2] = g
+            rgba[i * 4 + 3] = g
+        }
+        let image: UIImage? = rgba.withUnsafeMutableBytes { buffer in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                      bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+                  let made = ctx.makeImage() else { return nil }
+            return UIImage(cgImage: made)
+        }
+        if let image { glowCache[file] = image }
+        return image
+    }
+
     /// Art for a constellation by its display name ("Ursa Major").
     static func entry(forName name: String) -> ArtEntry? {
         let catalog = SkyCatalog.constellations

@@ -1,5 +1,4 @@
 import SwiftUI
-import ARKit
 
 /// Identifies which constellation's info sheet is open.
 struct InfoTarget: Identifiable {
@@ -32,6 +31,8 @@ struct SkyScreen: View {
     @State private var aimedUp = true
     /// Shown where "Checking photo…" goes (demo-mode captures).
     @State private var notice: String?
+    /// The compass heading is inaccurate (live camera only).
+    @State private var needsCalibration = false
     @AppStorage(DemoMode.defaultsKey) private var demoMode = false
 
     /// The ring is full and the phone points up at the sky (or demo mode), so capture is enabled.
@@ -49,14 +50,14 @@ struct SkyScreen: View {
 
     // Simulators have no camera or compass, so they get a virtual sky instead
     // (a silent developer fallback; the UI always assumes a phone pointed at the sky).
-    private let arSupported = ARWorldTrackingConfiguration.isSupported
+    private let liveSkySupported = SkyCameraDriver.isAvailable && CameraPreviewSession.isAvailable
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()   // what shows if the sky view is paused/hidden
 
             SkySceneView(
-                useAR: arSupported,
+                useCamera: liveSkySupported,
                 constellations: placed,
                 version: version,
                 discovered: Set(store.discoveries.keys),
@@ -68,13 +69,13 @@ struct SkyScreen: View {
                 },
                 onTarget: { target = $0 },
                 captureCount: captureCount,
-                arPaused: photo.arPaused,
                 onDiscover: { c, camera in
                     collect(c, camera: camera)
                 },
                 onAimedUp: { aimedUp = $0 },
                 quietTargetLabel: photo.isBusy,
-                allowLowAim: demoMode
+                allowLowAim: demoMode,
+                onNeedsCalibration: { needsCalibration = $0 }
             )
             .ignoresSafeArea()
 
@@ -91,7 +92,8 @@ struct SkyScreen: View {
 
             VStack {
                 SkyTopBar(showsInstruction: showHint, usingFallbackLocation: location.usingFallback,
-                          checkingPhoto: photo.isAnalyzing, notice: notice) {
+                          checkingPhoto: photo.isAnalyzing, notice: notice,
+                          needsCalibration: needsCalibration) {
                     showHint = false
                 }
                 Spacer()
@@ -174,7 +176,7 @@ struct SkyScreen: View {
     /// until the photo has been checked: the photo runs, "Checking photo…" shows, then `finish`
     /// collects it (or not). Without a camera (simulator, no permission) it goes straight to `finish`.
     /// In demo mode there's no photo and no Gemini: it goes straight to `finish` with a short notice.
-    private func collect(_ c: PlacedConstellation, camera: ARCameraSnapshot?) {
+    private func collect(_ c: PlacedConstellation, camera: SkyCameraPose?) {
         guard !store.isDiscovered(c.name), !checking.contains(c.name) else { return }
         checking.insert(c.name)
         if demoMode {
@@ -188,7 +190,7 @@ struct SkyScreen: View {
         }
         let context = SkyShotContext(constellationID: c.id, constellationName: c.name,
                                      latitude: location.latitude, longitude: location.longitude,
-                                     hasLocation: !location.usingFallback, takenAt: .now, arCamera: camera)
+                                     hasLocation: !location.usingFallback, takenAt: .now, cameraPose: camera)
         photo.shoot(context) { reading in
             Task { await finish(reading, name: c.name) }
         }

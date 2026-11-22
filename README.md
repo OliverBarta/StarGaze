@@ -51,7 +51,7 @@ Your finds as cards with rarity, points, place and date, plus completed-set stam
 ## How it works
 
 - **Sky positions:** each star's catalogue coordinates are converted to altitude and azimuth for your location and the current time, and refreshed as the Earth turns.
-- **Pointing:** ARKit aligns the scene to true north and gravity. Targeting compares where you're aiming with each constellation's shape (its outline), not just its centre, with a small tolerance that scales with its size.
+- **Pointing:** CoreMotion (gyroscope, accelerometer and compass) tracks where the phone points relative to true north and gravity, smoothed so the sky is steady. Unlike AR tracking, it doesn't need visual features, so it works against a dark sky. The drawn sky's field of view matches the camera's, so the stars line up with the picture. Targeting compares where you're aiming with each constellation's shape (its outline), not just its centre, with a small tolerance that scales with its size.
 - **Artwork alignment:** each illustration is pinned to three real anchor stars and warped onto the sky, so the stars land on the figure.
 - **Sky photo:** AVFoundation takes a ~1 s exposure at high ISO with focus near infinity, while CoreMotion records how much the phone moved. The AR session pauses for the shot so the camera is free.
 - **Star counting:** an on-device detector built with Accelerate converts the photo to linear brightness, rejects hot pixels, subtracts the sky background and keeps point-like peaks. Streaks, lights and edges are rejected.
@@ -64,7 +64,7 @@ Your finds as cards with rarity, points, place and date, plus completed-set stam
 
 ## Tech stack
 
-Swift · SwiftUI · ARKit · SceneKit · AVFoundation · CoreMotion · Accelerate · MapKit · CoreLocation · Google Gemini API · Supabase · Auth0
+Swift · SwiftUI · SceneKit · AVFoundation · CoreMotion · Accelerate · MapKit · CoreLocation · Google Gemini API · Supabase · Auth0
 
 ---
 

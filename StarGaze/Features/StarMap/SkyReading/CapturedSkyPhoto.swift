@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// The still photo straight from AVFoundation, plus what the camera actually did.
-/// The image is in the sensor's native landscape orientation (same axes as ARKit's intrinsics).
+/// The image is in the sensor's native landscape orientation.
 /// Pixels are processed and gamma-encoded by the phone, not linear sensor values.
 nonisolated struct CapturedSkyPhoto: @unchecked Sendable {
     let image: CGImage

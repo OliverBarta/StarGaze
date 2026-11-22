@@ -27,7 +27,7 @@ enum Astronomy {
         return (alt * 180 / .pi, azDeg)
     }
 
-    /// Unit vector pointing at (alt, az) in ARKit's .gravityAndHeading world:
+    /// Unit vector pointing at (alt, az) in the sky's world (the axes ARKit calls gravityAndHeading):
     /// +x = east, +y = up, -z = true north.
     static func arDirection(altDeg: Double, azDeg: Double) -> SIMD3<Float> {
         let alt = altDeg * .pi / 180
@@ -51,7 +51,7 @@ struct PlacedConstellation: Identifiable {
     let id: String
     let name: String
     let rank: Int
-    let segments: [[SIMD3<Float>]]  // unit direction vectors, ARKit world space
+    let segments: [[SIMD3<Float>]]  // unit direction vectors, sky world space
     let center: SIMD3<Float>        // average direction of its stars
     let centerAlt: Double
     let centerAz: Double
