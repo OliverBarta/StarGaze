@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// "Hold still… 3·2·1", a shutter flash, then a small neutral "Checking photo…" pill.
+/// "Hold still… 3·2·1" and the shutter flash. The "Checking photo…" pill is in `SkyTopBar`.
 struct SkyPhotoOverlay: View {
     let phase: SkyPhotoPhase
     let shutterCount: Int
-    var analyzing = false
     /// The constellation being photographed, shown on the card ("Leo Minor · taking a sky photo").
     var subjectName: String?
 
@@ -24,27 +23,9 @@ struct SkyPhotoOverlay: View {
             case .idle:
                 EmptyView()
             }
-
-            VStack(spacing: 8) {
-                if analyzing {
-                    Label {
-                        Text("Checking photo…")
-                    } icon: {
-                        SwiftUI.ProgressView().controlSize(.small)
-                    }
-                    .font(.footnote.weight(.medium))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .transition(.opacity)
-                }
-                Spacer()
-            }
-            .padding(.top, 72)
         }
         .allowsHitTesting(false)
         .animation(.easeOut(duration: 0.2), value: phase)
-        .animation(.easeOut(duration: 0.2), value: analyzing)
         .onChange(of: shutterCount) {
             flash = 0.8
             withAnimation(.easeOut(duration: 0.35)) { flash = 0 }
@@ -81,10 +62,5 @@ struct SkyPhotoOverlay: View {
 
 #Preview("Shooting") {
     SkyPhotoOverlay(phase: .shooting, shutterCount: 0)
-        .background(.black)
-}
-
-#Preview("Analyzing") {
-    SkyPhotoOverlay(phase: .idle, shutterCount: 1, analyzing: true)
         .background(.black)
 }

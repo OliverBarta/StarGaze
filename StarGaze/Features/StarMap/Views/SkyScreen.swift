@@ -85,11 +85,12 @@ struct SkyScreen: View {
             }
 
             SkyPhotoOverlay(phase: photo.phase, shutterCount: photo.shutterCount,
-                            analyzing: photo.isAnalyzing, subjectName: photo.subjectName)
+                            subjectName: photo.subjectName)
 
             VStack {
-                if showHint {
-                    hint.transition(.move(edge: .top).combined(with: .opacity))
+                SkyTopBar(showsInstruction: showHint, usingFallbackLocation: location.usingFallback,
+                          checkingPhoto: photo.isAnalyzing) {
+                    showHint = false
                 }
                 Spacer()
                 if let toast {
@@ -115,7 +116,6 @@ struct SkyScreen: View {
             }
             .padding()
             .animation(.spring(response: 0.4), value: toast)
-            .animation(.easeOut(duration: 0.25), value: showHint)
             .animation(.easeOut(duration: 0.2), value: target?.name)
             .animation(.easeOut(duration: 0.2), value: canCapture)
             .animation(.easeOut(duration: 0.2), value: showPointUp)
@@ -224,35 +224,6 @@ struct SkyScreen: View {
         stars = SkyModel.placeStars(latDeg: location.latitude, lonDeg: location.longitude, date: now)
         namedStars = SkyModel.placeNamedStars(latDeg: location.latitude, lonDeg: location.longitude, date: now)
         version += 1
-    }
-
-    private var hint: some View {
-        HStack(spacing: 10) {
-            VStack(spacing: 2) {
-                Text("Point your phone at the sky")
-                    .font(.subheadline.weight(.semibold))
-                Text("Hold on a constellation, then capture it · tap constellation to learn more"
-                     + (location.usingFallback ? " · sky over London, ON" : ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(alignment: .center)
-            Button {
-                showHint = false
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close tip")
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
     }
 }
 
