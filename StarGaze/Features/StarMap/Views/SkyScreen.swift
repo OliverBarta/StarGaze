@@ -230,7 +230,7 @@ struct SkyScreen: View {
             VStack(spacing: 2) {
                 Text("Point your phone at the sky")
                     .font(.subheadline.weight(.semibold))
-                Text("Hold on a constellation, then capture it · tap to learn more"
+                Text("Hold on a constellation, then capture it · tap constellation to learn more"
                      + (location.usingFallback ? " · sky over London, ON" : ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
