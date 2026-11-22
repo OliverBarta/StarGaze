@@ -1,8 +1,10 @@
 import Foundation
 import Observation
+import UIKit
 import os
 
-/// Runs the sky photo after a capture: countdown, pause ARKit, shoot, resume ARKit, analyze.
+/// Runs the sky photo after a capture: countdown, pause ARKit, shoot, resume ARKit, then analyze
+/// in the background (star detection, then Gemini's quality check).
 /// The constellation is already collected before this starts; nothing here can undo or block that.
 @Observable
 final class SkyPhotoSession {
@@ -11,14 +13,19 @@ final class SkyPhotoSession {
     private(set) var arPaused = false
     /// Bumps when the shutter has fired (drives the flash).
     private(set) var shutterCount = 0
+    /// Analyses still running. They don't block the next photo.
+    private var analysesRunning = 0
     /// DEBUG: exposure, ISO and motion of the last shot.
     private(set) var debugSummary: String?
 
     @ObservationIgnored private let capturer = SkyPhotoCapturer()
     @ObservationIgnored private let motion = MotionRecorder()
+    @ObservationIgnored private let gemini = GeminiService()
     @ObservationIgnored private let logger = Logger(subsystem: "com.oliver.StarGaze", category: "SkyPhoto")
 
+    /// Counting down or shooting. Analysis doesn't count, so the next find can be captured meanwhile.
     var isBusy: Bool { phase != .idle }
+    var isAnalyzing: Bool { analysesRunning > 0 }
 
     /// A photo can be taken on this device right now (real camera, permission granted).
     static var canShoot: Bool { SkyPhotoCapturer.isAvailable }
@@ -58,22 +65,22 @@ final class SkyPhotoSession {
         arPaused = false
         shutterCount += 1
         onShutter()
-
-        phase = .analyzing
-        await analyze(photo)
         phase = .idle
+
+        analysesRunning += 1
+        await analyze(photo)
+        analysesRunning -= 1
     }
 
-    /// Star detection runs here; Gemini and the estimate (Parts 3–4) plug in next. Nothing is
-    /// persisted yet: the photo is dropped when this returns.
+    /// Star detection, then Gemini's quality check with what the phone knows. Failures only mean
+    /// less information; nothing is persisted yet (Part 4 combines and saves the reading).
     private func analyze(_ photo: SkyPhoto) async {
         let detected = await Self.detectStars(in: photo)
         #if DEBUG
-        var summary = photo.debugSummary
-        if let result = detected?.result {
-            summary += String(format: " · %d stars (−%d) · glow %.4f", result.starCount,
-                              result.rejections.total, result.relativeSkyGlow)
-        }
+        let summary = photo.debugSummary + (detected.map {
+            String(format: " · %d stars (−%d) · glow %.4f", $0.result.starCount,
+                   $0.result.rejections.total, $0.result.relativeSkyGlow)
+        } ?? "")
         showDebugSummary(summary)
         if DebugPhotoSaver.isEnabled {
             await DebugPhotoSaver.save(photo)
@@ -82,6 +89,47 @@ final class SkyPhotoSession {
             }
         }
         #endif
+
+        let context = SkyAnalysisContext(
+            constellationName: photo.context.constellationName,
+            brightestStars: TargetStarCatalog.brightestStars(constellationID: photo.context.constellationID,
+                                                             limit: SkyReadingTuning.contextStarCount),
+            detectedStars: detected?.result.starCount
+        )
+        let analysis: SkyAnalysis?
+        do {
+            analysis = try await gemini.analyzeSky(Self.uprightImage(of: photo), context: context,
+                                                   timeout: SkyReadingTuning.geminiTimeoutSeconds)
+        } catch {
+            logger.error("Gemini sky check failed: \(String(describing: error))")
+            analysis = nil
+        }
+        #if DEBUG
+        if let analysis {
+            let issues = SkyReadingIssue.issues(from: analysis).map(\.label)
+            showDebugSummary(summary + String(format: " · Gemini %d★ B%d %@%@ · %@", analysis.estimatedVisibleStars,
+                                              analysis.skyBrightness, analysis.targetPatternVisible ? "pattern " : "",
+                                              analysis.confidence.rawValue,
+                                              issues.isEmpty ? "OK" : issues.joined(separator: ", ")))
+        } else {
+            showDebugSummary(summary + " · Gemini failed")
+        }
+        #endif
+    }
+
+    /// The photo rotated the way the phone was held, so Gemini sees the sky the right way up.
+    private nonisolated static func uprightImage(of photo: SkyPhoto) -> UIImage {
+        let orientation: UIImage.Orientation = switch photo.displayOrientation {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        case .upMirrored: .upMirrored
+        case .downMirrored: .downMirrored
+        case .leftMirrored: .leftMirrored
+        case .rightMirrored: .rightMirrored
+        }
+        return UIImage(cgImage: photo.captured.image, scale: 1, orientation: orientation)
     }
 
     /// Off the main thread: linear luminance, hot-pixel-rejecting downscale, then detection.

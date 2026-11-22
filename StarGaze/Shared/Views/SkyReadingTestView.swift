@@ -72,6 +72,7 @@ struct SkyReadingTestView: View {
 
     private func result(_ analysis: SkyAnalysis) -> some View {
         let level = FindLevel(analysis: analysis)
+        let issues = SkyReadingIssue.issues(from: analysis)
         return Section {
             LabeledContent("Result") {
                 Label(level.label, systemImage: level == .spotted ? "checkmark.seal.fill" : "mappin.circle")
@@ -80,6 +81,7 @@ struct SkyReadingTestView: View {
             LabeledContent("Night sky", value: analysis.isNightSky ? "Yes" : "No")
             LabeledContent("Clouds", value: analysis.cloudCover.label)
             LabeledContent("Obstructions", value: analysis.obstructions.isEmpty ? "None" : analysis.obstructions.map(\.label).joined(separator: ", "))
+            LabeledContent("Quality", value: issues.isEmpty ? "Usable" : issues.map(\.label).joined(separator: ", "))
             LabeledContent("Visible stars", value: "\(analysis.estimatedVisibleStars)")
             LabeledContent("Sky brightness", value: "\(analysis.skyBrightness) of 9")
             LabeledContent("Confidence", value: analysis.confidence.label)

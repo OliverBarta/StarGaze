@@ -60,7 +60,7 @@ struct SkyScreen: View {
             .ignoresSafeArea()
 
             SkyPhotoOverlay(phase: photo.phase, shutterCount: photo.shutterCount,
-                            debugSummary: photo.debugSummary)
+                            analyzing: photo.isAnalyzing, debugSummary: photo.debugSummary)
 
             // what you're aiming at: a fill-up ring while collecting, a seal if already collected
             if let target {

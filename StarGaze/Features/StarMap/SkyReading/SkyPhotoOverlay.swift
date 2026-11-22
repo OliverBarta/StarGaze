@@ -4,6 +4,7 @@ import SwiftUI
 struct SkyPhotoOverlay: View {
     let phase: SkyPhotoPhase
     let shutterCount: Int
+    var analyzing = false
     var debugSummary: String?
 
     @State private var flash = 0.0
@@ -19,12 +20,12 @@ struct SkyPhotoOverlay: View {
                 holdStill(Text("\(n)").contentTransition(.numericText(countsDown: true)))
             case .shooting:
                 holdStill(Image(systemName: "camera.aperture").symbolEffect(.pulse))
-            case .analyzing, .idle:
+            case .idle:
                 EmptyView()
             }
 
             VStack(spacing: 8) {
-                if phase == .analyzing {
+                if analyzing {
                     Label {
                         Text("Analyzing sky…")
                     } icon: {
@@ -50,6 +51,7 @@ struct SkyPhotoOverlay: View {
         }
         .allowsHitTesting(false)
         .animation(.easeOut(duration: 0.2), value: phase)
+        .animation(.easeOut(duration: 0.2), value: analyzing)
         .onChange(of: shutterCount) {
             flash = 0.8
             withAnimation(.easeOut(duration: 0.35)) { flash = 0 }
@@ -87,7 +89,7 @@ struct SkyPhotoOverlay: View {
 }
 
 #Preview("Analyzing") {
-    SkyPhotoOverlay(phase: .analyzing, shutterCount: 1,
+    SkyPhotoOverlay(phase: .idle, shutterCount: 1, analyzing: true,
                     debugSummary: "1.00 s · ISO 2304 · 4032×3024 · FOV 69° · moved 0.8°/s")
         .background(.black)
 }

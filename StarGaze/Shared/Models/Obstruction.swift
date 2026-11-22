@@ -11,6 +11,12 @@ nonisolated enum Obstruction: String, Codable, CaseIterable, Sendable {
     case buildings
     case streetlight
     case moonGlare = "moon_glare"
+    /// Fog, haze or smoke.
+    case haze
+    /// Motion blur or out of focus.
+    case blur
+    /// Smudged, fogged or partly covered lens (e.g. a finger).
+    case lens
     case other
 
     var label: String {
@@ -19,6 +25,9 @@ nonisolated enum Obstruction: String, Codable, CaseIterable, Sendable {
         case .buildings: "Buildings"
         case .streetlight: "Streetlight"
         case .moonGlare: "Moon glare"
+        case .haze: "Haze"
+        case .blur: "Blur"
+        case .lens: "Lens smudge"
         case .other: "Other"
         }
     }

@@ -15,6 +15,9 @@ nonisolated struct SkyAnalysis: Codable, Equatable, Sendable {
     /// Bortle-like: 1 = pristine dark sky, 9 = inner-city sky.
     var skyBrightness: Int
     var confidence: SkyConfidence
+    /// The target constellation's stick-figure pattern can be recognised in the photo.
+    /// Always false without context (library photos).
+    var targetPatternVisible: Bool
     var reason: String
 
     /// Decodes Gemini's JSON and keeps every value in range.
@@ -47,6 +50,7 @@ extension SkyAnalysis {
         estimatedVisibleStars: 14,
         skyBrightness: 5,
         confidence: .medium,
+        targetPatternVisible: true,
         reason: "Night sky with a dozen or so stars visible above a tree line; some thin cloud in one corner."
     )
 
@@ -57,6 +61,7 @@ extension SkyAnalysis {
         estimatedVisibleStars: 0,
         skyBrightness: 8,
         confidence: .high,
+        targetPatternVisible: false,
         reason: "Uniform orange cloud lit by streetlights; no stars visible."
     )
 }

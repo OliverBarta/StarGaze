@@ -56,6 +56,13 @@ nonisolated enum SkyReadingTuning {
     /// Stars this close to the image edge (pixels) are ignored.
     static let edgeMargin = 8
 
+    // MARK: Gemini
+
+    /// How many of the target's brightest stars are named in Gemini's prompt.
+    static let contextStarCount = 6
+    /// Give up on Gemini after this long; the reading then has no quality check.
+    static let geminiTimeoutSeconds: TimeInterval = 20
+
     // MARK: Motion
 
     /// Device-motion sample rate while shooting.
