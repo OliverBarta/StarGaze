@@ -61,6 +61,7 @@ struct ProfileView: View {
     }
 }
 
+#if DEBUG
 #Preview("Signed in") {
     Color(.systemGroupedBackground)
         .sheet(isPresented: .constant(true)) {
@@ -70,3 +71,4 @@ struct ProfileView: View {
         .environment(AuthService.preview(user: .preview))
         .environment(SupabaseService.preview())
 }
+#endif

@@ -5,6 +5,8 @@
 
 import Foundation
 
+#if DEBUG
+/// Sample friends and captures for previews (DEBUG builds only; the app uses `SupabaseFriendsDataSource`).
 struct MockFriendsDataSource: FriendsDataSource {
     var captures: [FriendCapture] = MockFriendsDataSource.sampleCaptures
     var delay: Duration = .seconds(1)
@@ -91,3 +93,4 @@ extension MockFriendsDataSource {
         )
     }
 }
+#endif

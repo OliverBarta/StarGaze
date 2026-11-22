@@ -24,6 +24,7 @@ struct ProfileButton: View {
     }
 }
 
+#if DEBUG
 #Preview("Signed in") {
     NavigationStack {
         Color(.systemGroupedBackground)
@@ -36,3 +37,4 @@ struct ProfileButton: View {
     }
     .environment(AuthService.preview(user: .preview))
 }
+#endif

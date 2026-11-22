@@ -19,7 +19,7 @@ Tabs:
 - **Friends**: feed of friends' finds and the weekly leaderboard.
 - **Collection**: your finds, completed sets and stamps.
 
-Backend: a teammate is building the Supabase database on another branch. Keep new data local and upload-ready; don't add Supabase code here.
+Backend: Supabase (see **Supabase** below) stores profiles, follows, captures and light readings.
 
 ## Build
 
@@ -61,7 +61,7 @@ Code is organized as `App/` (entry and root navigation), `Features/<Feature>/` (
 
 **Light pollution / spots** (`Features/LightPollution/`). `LightPollutionService` loads 5°×5° sky-brightness tiles: bundled `LightTiles/*.bin` first, then a disk cache, then an optional remote URL (`remoteBaseURL`, nil by default). The tile binary format is documented at the top of that file and must match the offline `make_light_tiles.py` preprocessing script, which is not in this repo. Keep the `Bortle` thresholds in sync with that script too. The tiles are no longer used for spots: `ReadingSpots` (`LightReadingsHeatmap.swift`) picks them from the `light_readings` heatmap, mapping strength 0…1 linearly to SQM 22…18. `TonightConditionsService` calculates sun and moon positions on the device and fetches cloud cover from Open-Meteo (no API key, 30-minute cache), then scores spots for tonight. `StargazingSpotsView` and `LightPollutionMapView` (MapKit) show the results, and `SpotDetailView` shows details for one spot.
 
-**Friends** (`Features/Friends/`). MVVM: `FriendsViewModel` reads from the `FriendsDataSource` protocol. `ContentView` passes `SupabaseFriendsDataSource`; `MockFriendsDataSource` is the default in `FriendsView.init` and drives the previews. `FriendStanding.ranked` counts each constellation once per friend per week, so data sources should return captures without removing duplicates. The leaderboard also includes the user (`FriendStanding.isMe`, a "You" tag, shown below the top 5 with their real rank if they're lower): their captures come from Supabase (`fetchMyCaptures`) or, failing that, the local `DiscoveryStore`, and Spotted (2× points) comes from the `captures.level` column. The feed stays friends-only.
+**Friends** (`Features/Friends/`). MVVM: `FriendsViewModel` reads from the `FriendsDataSource` protocol. `ContentView` passes `SupabaseFriendsDataSource`; `MockFriendsDataSource` (DEBUG only) drives the previews. `FriendStanding.ranked` counts each constellation once per friend per week, so data sources should return captures without removing duplicates. The leaderboard also includes the user (`FriendStanding.isMe`, a "You" tag, shown below the top 5 with their real rank if they're lower): their captures come from Supabase (`fetchMyCaptures`) or, failing that, the local `DiscoveryStore`, and Spotted (2× points) comes from the `captures.level` column. The feed stays friends-only.
 
 **Supabase** (`Shared/Services/SupabaseService.swift`, schema in `supabase/schema.sql`). Plain `URLSession` calls to PostgREST, no SDK. Auth is Auth0 via Supabase Third-Party Auth: `AuthService` requests the `https://stargaze-api` audience so the access token is a JWT, and RLS reads the Auth0 `sub` (text, not a UUID) through `requesting_user_id()`. `ContentView.startSharing()` creates the profile (auto-generated username), wires `DiscoveryStore.saveCapture`/`fetchCaptures` to `SupabaseService.saveCapture`/`fetchCaptures`, and loads the collection. Follows are one-way; the `feed` view returns captures from followed users.
 

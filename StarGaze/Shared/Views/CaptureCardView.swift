@@ -90,6 +90,7 @@ extension CaptureCardView where Header == EmptyView {
     }
 }
 
+#if DEBUG
 private extension CaptureCardContent {
     static let recentSample = CaptureCardContent(
         constellationName: "Andromeda",
@@ -196,3 +197,4 @@ private extension CaptureCardContent {
     .padding(Metrics.large)
     .background(Color(.systemGroupedBackground))
 }
+#endif

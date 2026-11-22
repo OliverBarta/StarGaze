@@ -19,7 +19,8 @@ nonisolated enum SkyReadingEstimator {
         var hasLocation: Bool
     }
 
-    /// TODO(Part 5): compare against the catalog stars expected in frame instead of fixed count bands.
+    /// Fixed count bands: a rough estimate. Comparing against the catalog stars expected in the
+    /// frame would be more accurate.
     static func bortle(detectedStars: Int) -> Int {
         for band in SkyReadingTuning.bortleForStarCount where detectedStars >= band.minStars {
             return band.bortle

@@ -81,6 +81,7 @@ struct CollectionView: View {
     }
 }
 
+#if DEBUG
 #Preview("Collection") {
     CollectionView()
         .environment(AuthService.preview(user: .preview))
@@ -96,6 +97,7 @@ struct CollectionView: View {
     CollectionView(constellations: [])
         .environment(AuthService.preview(user: .preview))
 }
+#endif
 
 extension CaptureCardContent {
     /// Placeholder captures until the collection has real data.

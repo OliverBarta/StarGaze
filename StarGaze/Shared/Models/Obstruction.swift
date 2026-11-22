@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// Something in the photo blocking or washing out the sky. Raw values match Gemini's JSON and the database.
+/// Something in the photo blocking or washing out the sky. Raw values match Gemini's JSON.
 nonisolated enum Obstruction: String, Codable, CaseIterable, Sendable {
     case trees
     case buildings

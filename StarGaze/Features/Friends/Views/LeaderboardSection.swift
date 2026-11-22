@@ -53,6 +53,7 @@ struct LeaderboardSection: View {
     }
 }
 
+#if DEBUG
 private enum LeaderboardPreviewData {
     static let me = MockFriendsDataSource.alex
 
@@ -116,3 +117,4 @@ private enum LeaderboardPreviewData {
     }
     .background(Color(.systemGroupedBackground))
 }
+#endif

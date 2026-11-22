@@ -187,7 +187,7 @@ nonisolated final class SkyPhotoCapturer: NSObject, AVCapturePhotoCaptureDelegat
             let iso = (exif?[kCGImagePropertyExifISOSpeedRatings as String] as? [Double])?.first ?? Double(device.iso)
             let end = self.exposureEnd > self.exposureStart ? self.exposureEnd : self.exposureStart + exposure
             self.finish(.success(CapturedSkyPhoto(
-                image: image, exposureSeconds: exposure, iso: iso, lensPosition: device.lensPosition,
+                image: image, exposureSeconds: exposure, iso: iso,
                 fieldOfViewDegrees: self.fieldOfView, exposureStart: self.exposureStart, exposureEnd: end)))
         }
     }

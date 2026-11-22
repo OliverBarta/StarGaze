@@ -28,6 +28,7 @@ struct RootView: View {
     }
 }
 
+#if DEBUG
 #Preview("Restoring session") {
     RootView()
         .environment(AuthService.preview(user: nil, isLoading: true))
@@ -43,3 +44,4 @@ struct RootView: View {
         .environment(AuthService.preview(user: .preview))
         .environment(SupabaseService.preview())
 }
+#endif
