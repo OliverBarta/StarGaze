@@ -4,8 +4,8 @@ import UIKit
 import os
 
 /// Runs the sky photo after a capture: countdown, pause ARKit, shoot, resume ARKit, then analyze
-/// in the background (star detection, then Gemini's quality check).
-/// The constellation is already collected before this starts; nothing here can undo or block that.
+/// in the background (star detection, then Gemini's quality check). SkyScreen collects the
+/// constellation (or not) once the reading is back.
 @Observable
 final class SkyPhotoSession {
     private(set) var phase: SkyPhotoPhase = .idle
@@ -15,8 +15,8 @@ final class SkyPhotoSession {
     private(set) var shutterCount = 0
     /// Analyses still running. They don't block the next photo.
     private var analysesRunning = 0
-    /// DEBUG: exposure, ISO and motion of the last shot.
-    private(set) var debugSummary: String?
+    /// The constellation being photographed (shown on the "Hold still" card).
+    private(set) var subjectName: String?
 
     @ObservationIgnored private let capturer = SkyPhotoCapturer()
     @ObservationIgnored private let motion = MotionRecorder()
@@ -30,14 +30,23 @@ final class SkyPhotoSession {
     /// A photo can be taken on this device right now (real camera, permission granted).
     static var canShoot: Bool { SkyPhotoCapturer.isAvailable }
 
-    /// Starts the photo. `onShutter` is called exactly once: when the shutter has fired, or as
-    /// soon as it's clear there won't be a photo.
-    func shoot(_ context: SkyShotContext, onShutter: @escaping () -> Void) {
-        guard !isBusy else { return onShutter() }
-        Task { await run(context, onShutter: onShutter) }
+    /// Starts the photo. `onShutter` is called exactly once, when the shutter has fired or as soon
+    /// as it's clear there won't be a photo. `onDone` is called exactly once afterwards, with the
+    /// reading, or nil if there was no photo.
+    func shoot(_ context: SkyShotContext, onShutter: @escaping () -> Void = {},
+               onDone: @escaping (SkyPhotoReading?) -> Void) {
+        guard !isBusy else {
+            onShutter()
+            onDone(nil)
+            return
+        }
+        Task { await run(context, onShutter: onShutter, onDone: onDone) }
     }
 
-    private func run(_ context: SkyShotContext, onShutter: @escaping () -> Void) async {
+    private func run(_ context: SkyShotContext, onShutter: @escaping () -> Void,
+                     onDone: @escaping (SkyPhotoReading?) -> Void) async {
+        subjectName = context.constellationName
+        defer { subjectName = nil }
         for n in stride(from: SkyReadingTuning.countdownSeconds, to: 1, by: -1) {
             phase = .countdown(n)
             try? await Task.sleep(for: .seconds(1))
@@ -60,6 +69,7 @@ final class SkyPhotoSession {
             arPaused = false
             onShutter()
             phase = .idle
+            onDone(nil)
             return
         }
         arPaused = false
@@ -67,21 +77,18 @@ final class SkyPhotoSession {
         onShutter()
         phase = .idle
 
+        subjectName = nil
         analysesRunning += 1
-        await analyze(photo)
+        let reading = await analyze(photo)
         analysesRunning -= 1
+        onDone(reading)
     }
 
-    /// Star detection, then Gemini's quality check with what the phone knows. Failures only mean
-    /// less information; nothing is persisted yet (Part 4 combines and saves the reading).
-    private func analyze(_ photo: SkyPhoto) async {
+    /// Star detection, then Gemini's quality check with what the phone knows, then the estimate.
+    /// Failures only make the reading unreliable; they never affect the find itself.
+    private func analyze(_ photo: SkyPhoto) async -> SkyPhotoReading {
         let detected = await Self.detectStars(in: photo)
         #if DEBUG
-        let summary = photo.debugSummary + (detected.map {
-            String(format: " · %d stars (−%d) · glow %.4f", $0.result.starCount,
-                   $0.result.rejections.total, $0.result.relativeSkyGlow)
-        } ?? "")
-        showDebugSummary(summary)
         if DebugPhotoSaver.isEnabled {
             await DebugPhotoSaver.save(photo)
             if let detected {
@@ -104,18 +111,29 @@ final class SkyPhotoSession {
             logger.error("Gemini sky check failed: \(String(describing: error))")
             analysis = nil
         }
+        let device = Self.deviceEvidence(photo, detected?.result)
+        let sky = SunMoonAstronomy.sky(at: photo.context.takenAt, latitude: photo.context.latitude,
+                                       longitude: photo.context.longitude)
+        let reading = SkyReadingEstimator.reading(from: SkyReadingEstimator.Input(
+            context: photo.context, source: .camera, deviceModel: DeviceModel.identifier,
+            exposureSeconds: photo.captured.exposureSeconds, iso: Double(photo.captured.iso),
+            detection: detected?.result, analysis: analysis, device: device, sky: sky,
+            hasLocation: photo.context.hasLocation, demoMode: photo.context.demoMode
+        ))
         #if DEBUG
-        if let analysis {
-            let issues = SkyReadingIssue.issues(from: analysis, device: Self.deviceEvidence(photo, detected?.result))
-                .map(\.label)
-            showDebugSummary(summary + String(format: " · Gemini %d★ B%d %@%@ · %@", analysis.estimatedVisibleStars,
-                                              analysis.skyBrightness, analysis.targetPatternVisible ? "pattern " : "",
-                                              analysis.confidence.rawValue,
-                                              issues.isEmpty ? "OK" : issues.joined(separator: ", ")))
-        } else {
-            showDebugSummary(summary + " · Gemini failed")
-        }
+        let stars = detected.map {
+            String(format: " · %d stars (−%d) · glow %.4f", $0.result.starCount,
+                   $0.result.rejections.total, $0.result.relativeSkyGlow)
+        } ?? ""
+        let geminiText = analysis.map {
+            String(format: " · Gemini B%d %@%@", $0.skyBrightness, $0.targetPatternVisible ? "pattern " : "",
+                   $0.confidence.rawValue)
+        } ?? " · Gemini failed"
+        let issues = reading.issues.isEmpty ? "OK" : reading.issues.map(\.label).joined(separator: ", ")
+        let line = photo.debugSummary + stars + geminiText + " · B\(reading.bortle) · \(issues)"
+        logger.debug("Sky photo: \(line)")
         #endif
+        return reading
     }
 
     /// What the phone measured itself, which outranks Gemini on "sky?" and "blurred?".
@@ -155,15 +173,4 @@ final class SkyPhotoSession {
                                          iso: photo.captured.iso)
         return (image, result)
     }
-
-    #if DEBUG
-    private func showDebugSummary(_ text: String) {
-        debugSummary = text
-        logger.debug("Sky photo: \(text)")
-        Task {
-            try? await Task.sleep(for: SkyReadingTuning.debugSummaryDuration)
-            if debugSummary == text { debugSummary = nil }
-        }
-    }
-    #endif
 }

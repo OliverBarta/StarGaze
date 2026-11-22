@@ -9,6 +9,8 @@ final class DiscoveryStore {
         var date: Date
         var place: String
         var stampSetIDs: [String] = []
+        /// Upgraded to Spotted by a good sky photo; nil (older saves) means located.
+        var level: FindLevel?
     }
 
     /// One completed set waiting for its cutscene.
@@ -23,10 +25,8 @@ final class DiscoveryStore {
     private(set) var completedSetIDs: Set<String> = []
     /// Cutscenes to play, in order.
     var pendingCompletions: [Completion] = []
-    /// True while a sky photo is being taken, so a set cutscene waits until the shutter fires.
-    var holdsCutscenes = false
-    /// The cutscene to show now, if any (nil while held).
-    var cutsceneToPlay: Completion? { holdsCutscenes ? nil : pendingCompletions.first }
+    /// The cutscene to show now, if any.
+    var cutsceneToPlay: Completion? { pendingCompletions.first }
     /// Stamps that should "slam" in the next time the collection appears.
     var freshStamps: Set<String> = []
 
@@ -69,6 +69,15 @@ final class DiscoveryStore {
         }
         save()
         if let discovery = discoveries[name] { onDiscover?(discovery) }
+        return true
+    }
+
+    /// Upgrades a find to Spotted (never downgrades). Returns true if it changed.
+    @discardableResult
+    func markSpotted(_ name: String) -> Bool {
+        guard let discovery = discoveries[name], discovery.level != .spotted else { return false }
+        discoveries[name]?.level = .spotted
+        save()
         return true
     }
 
@@ -133,6 +142,7 @@ final class DiscoveryStore {
         for i in 0..<list.count {
             let d = list[i]
             let rarity = Rarity.forConstellation(d.name)
+            let spotted = d.level == .spotted
             var stamps: [ConstellationSet] = []
             for s in 0..<d.stampSetIDs.count {
                 if let set = ConstellationSet.all.first(where: { $0.id == d.stampSetIDs[s] }) {
@@ -141,8 +151,9 @@ final class DiscoveryStore {
             }
             result.append(CaptureCardContent(
                 constellationName: d.name, locationName: d.place, date: d.date,
-                image: catalog.image(for: d.name), rarity: rarity, points: rarity.points,
-                stamps: stamps, stampIsFresh: freshStamps.contains(d.name)))
+                image: catalog.image(for: d.name), rarity: rarity,
+                points: rarity.points * (spotted ? 2 : 1),
+                stamps: stamps, stampIsFresh: freshStamps.contains(d.name), isSpotted: spotted))
         }
         return result
     }

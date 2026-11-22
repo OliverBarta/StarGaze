@@ -63,7 +63,27 @@ nonisolated enum SkyReadingTuning {
     /// Give up on Gemini after this long; the reading then has no quality check.
     static let geminiTimeoutSeconds: TimeInterval = 20
 
+    // MARK: Estimate
+
+    /// Detected stars → Bortle class, brightest sky first match wins from the top.
+    /// Rough bands for a ~1 s handheld exposure; a phone can't tell Bortle 1–2 apart from 3.
+    /// TODO(Part 5): replace with detected vs. expected catalog stars.
+    static let bortleForStarCount: [(minStars: Int, bortle: Int)] = [
+        (150, 3), (80, 4), (40, 5), (20, 6), (10, 7), (4, 8),
+    ]
+    /// Gemini's brightness guess lowers confidence when it's this many classes away.
+    static let geminiDisagreementClasses = 2
+    /// Sun higher than this (degrees): "Twilight", unreliable.
+    static let maxSunAltitudeDegrees = -12.0
+    /// Moon above the horizon and more lit than this: kept, but low confidence.
+    static let brightMoonIllumination = 0.5
+
     // MARK: Device evidence
+
+    /// The capture button needs the camera at least this far above the horizon ("Point up at the sky").
+    static let minCaptureElevationDegrees = 15.0
+    /// Hysteresis so the button doesn't flicker right at the threshold.
+    static let captureElevationHysteresisDegrees = 2.0
 
     /// Camera at least this far above the horizon counts as aimed at the sky, so Gemini's
     /// "not a sky photo" needs high confidence to count.
@@ -81,8 +101,8 @@ nonisolated enum SkyReadingTuning {
     /// Device-motion sample rate while shooting.
     static let motionUpdateInterval: TimeInterval = 1.0 / 100.0
 
-    // MARK: Debug
+    // MARK: Toasts
 
-    /// How long the DEBUG exposure summary stays on screen.
-    static let debugSummaryDuration: Duration = .seconds(8)
+    /// How long each capture toast stays on screen.
+    static let toastDuration: Duration = .seconds(3)
 }

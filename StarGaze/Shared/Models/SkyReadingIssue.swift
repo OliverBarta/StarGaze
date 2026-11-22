@@ -22,6 +22,8 @@ nonisolated enum SkyReadingIssue: String, Codable, CaseIterable, Sendable {
     case twilight
     case phoneMoved = "phone_moved"
     case moonBright = "moon_bright"
+    /// Star detection or Gemini's check didn't run (offline, timeout).
+    case unchecked
 
     /// True: the reading is unreliable and won't count toward the map.
     /// False: the reading is kept with lower confidence.
@@ -45,6 +47,7 @@ nonisolated enum SkyReadingIssue: String, Codable, CaseIterable, Sendable {
         case .twilight: "Twilight"
         case .phoneMoved: "Phone moved"
         case .moonBright: "Moon brightening the sky"
+        case .unchecked: "Couldn't check the photo"
         }
     }
 

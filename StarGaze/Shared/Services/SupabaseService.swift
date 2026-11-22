@@ -181,6 +181,16 @@ final class SupabaseService {
         }
     }
 
+    /// Adds one reading to the shared map. `coordinates` is a Postgres point "(lat,lon)".
+    func insertLightReading(latitude: Double, longitude: Double, strength: Double) async throws {
+        struct Row: Encodable {
+            let coordinates: String
+            let strength: Double
+        }
+        let row = Row(coordinates: "(\(latitude),\(longitude))", strength: min(1, max(0, strength)))
+        try await send("POST", "light_readings", body: row, prefer: "return=minimal")
+    }
+
     // MARK: Requests
 
     private func request<Response: Decodable>(

@@ -56,6 +56,11 @@ struct CaptureCardView<Header: View>: View {
 
         return layout {
             RarityLabel(rarity: content.rarity)
+            if content.isSpotted {
+                Label("Spotted", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Rarity.legendary.color)
+            }
             if !isAccessibilitySize {
                 Spacer(minLength: 0)
             }
@@ -177,4 +182,17 @@ private extension CaptureCardContent {
     }
     .background(Color(.systemGroupedBackground))
     .environment(\.dynamicTypeSize, .accessibility2)
+}
+
+#Preview("Spotted") {
+    CaptureCardView(content: CaptureCardContent(
+        constellationName: "Orion",
+        locationName: "London, Ontario",
+        date: .now.addingTimeInterval(-600),
+        rarity: .common,
+        points: Rarity.common.points * 2,
+        isSpotted: true
+    ))
+    .padding(Metrics.large)
+    .background(Color(.systemGroupedBackground))
 }

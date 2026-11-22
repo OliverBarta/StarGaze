@@ -16,4 +16,5 @@ struct StarView: View {
 #Preview {
     StarView()
         .environment(DiscoveryStore())
+        .environment(SkyReadingStore(fileURL: nil))
 }

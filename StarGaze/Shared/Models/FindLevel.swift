@@ -7,21 +7,15 @@ import Foundation
 
 /// How well a find was confirmed by its sky photo.
 nonisolated enum FindLevel: String, Codable, CaseIterable, Sendable {
-    /// Night sky, not overcast, at least 3 stars visible. Double points and a gold stamp.
+    /// The reading counts toward the map and Gemini could see the constellation's pattern.
+    /// Double points and a gold badge.
     case spotted
     /// Everything else: bright city sky, no camera, or a bad photo. Base points.
     case located
 
     /// The one rule for levels. No analysis (no camera, Gemini failed) means located.
-    init(analysis: SkyAnalysis?) {
-        if let analysis,
-           analysis.isNightSky,
-           analysis.cloudCover != .overcast,
-           analysis.estimatedVisibleStars >= 3 {
-            self = .spotted
-        } else {
-            self = .located
-        }
+    init(reliable: Bool, analysis: SkyAnalysis?) {
+        self = reliable && analysis?.targetPatternVisible == true ? .spotted : .located
     }
 
     var label: String {

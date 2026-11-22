@@ -71,8 +71,8 @@ struct SkyReadingTestView: View {
     }
 
     private func result(_ analysis: SkyAnalysis) -> some View {
-        let level = FindLevel(analysis: analysis)
         let issues = SkyReadingIssue.issues(from: analysis)
+        let level = FindLevel(reliable: !issues.contains(where: \.isBlocking), analysis: analysis)
         return Section {
             LabeledContent("Result") {
                 Label(level.label, systemImage: level == .spotted ? "checkmark.seal.fill" : "mappin.circle")
@@ -91,7 +91,7 @@ struct SkyReadingTestView: View {
         } header: {
             Text("Gemini's check")
         } footer: {
-            Text("Spotted needs a night sky that isn't overcast, with at least 3 stars visible.")
+            Text("Spotted needs a usable photo in which the target constellation's pattern is visible, so library photos (no target) are always Located.")
         }
     }
 

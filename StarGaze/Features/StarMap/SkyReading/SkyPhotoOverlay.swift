@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// "Hold still… 3·2·1", a shutter flash, then a small "Analyzing sky…" pill.
+/// "Hold still… 3·2·1", a shutter flash, then a small neutral "Checking photo…" pill.
 struct SkyPhotoOverlay: View {
     let phase: SkyPhotoPhase
     let shutterCount: Int
     var analyzing = false
-    var debugSummary: String?
+    /// The constellation being photographed, shown on the card ("Leo Minor · taking a sky photo").
+    var subjectName: String?
 
     @State private var flash = 0.0
 
@@ -27,7 +28,7 @@ struct SkyPhotoOverlay: View {
             VStack(spacing: 8) {
                 if analyzing {
                     Label {
-                        Text("Analyzing sky…")
+                        Text("Checking photo…")
                     } icon: {
                         SwiftUI.ProgressView().controlSize(.small)
                     }
@@ -36,14 +37,6 @@ struct SkyPhotoOverlay: View {
                     .padding(.vertical, 6)
                     .background(.ultraThinMaterial, in: Capsule())
                     .transition(.opacity)
-                }
-                if let debugSummary {
-                    Text(debugSummary)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.8))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.black.opacity(0.5), in: Capsule())
                 }
                 Spacer()
             }
@@ -66,20 +59,23 @@ struct SkyPhotoOverlay: View {
                 .frame(height: 52)
             Text("Hold still…")
                 .font(.headline)
-            Text("Taking a sky photo")
+            Text(subjectName.map { "\($0) · taking a sky photo" } ?? "Taking a sky photo")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 28)
         .padding(.vertical, 18)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        // near-opaque so the ring and sky labels behind it can't show through
+        .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.15)))
         .transition(.opacity)
     }
 }
 
 #Preview("Countdown") {
-    SkyPhotoOverlay(phase: .countdown(2), shutterCount: 0)
+    SkyPhotoOverlay(phase: .countdown(2), shutterCount: 0, subjectName: "Leo Minor")
         .background(.black)
 }
 
@@ -89,7 +85,6 @@ struct SkyPhotoOverlay: View {
 }
 
 #Preview("Analyzing") {
-    SkyPhotoOverlay(phase: .idle, shutterCount: 1, analyzing: true,
-                    debugSummary: "1.00 s · ISO 2304 · 4032×3024 · FOV 69° · moved 0.8°/s")
+    SkyPhotoOverlay(phase: .idle, shutterCount: 1, analyzing: true)
         .background(.black)
 }

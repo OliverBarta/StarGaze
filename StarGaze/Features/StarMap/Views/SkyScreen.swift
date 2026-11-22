@@ -12,6 +12,7 @@ struct InfoTarget: Identifiable {
 /// Tap one to learn about it.
 struct SkyScreen: View {
     @Environment(DiscoveryStore.self) private var store
+    @Environment(SkyReadingStore.self) private var readings
     @State private var location = LocationProvider()
     @State private var target: SkyTarget?
     @State private var toast: String?
@@ -24,11 +25,24 @@ struct SkyScreen: View {
     @State private var captureCount = 0
     @State private var showHint = true
     @State private var photo = SkyPhotoSession()
+    /// Toasts waiting their turn (each shows for `SkyReadingTuning.toastDuration`).
+    @State private var toastQueue: [String] = []
+    /// Constellations whose photo is still being checked; they can't be captured again meanwhile.
+    @State private var checking: Set<String> = []
+    @State private var aimedUp = true
+    @AppStorage(DemoMode.defaultsKey) private var demoMode = false
 
-    /// The ring is full, so the capture button is enabled.
+    /// The ring is full and the phone points up at the sky (or demo mode), so capture is enabled.
     private var canCapture: Bool {
         guard let target else { return false }
-        return !target.isCollected && target.progress >= 1 && !photo.isBusy
+        return !target.isCollected && target.progress >= 1 && !photo.isBusy && !checking.contains(target.name)
+            && (aimedUp || demoMode)
+    }
+
+    /// A constellation is targeted but the phone is aimed too low to count as the sky.
+    private var showPointUp: Bool {
+        guard let target, !target.isCollected, !demoMode, !photo.isBusy else { return false }
+        return !aimedUp
     }
 
     // Simulators have no camera or compass, so they get a virtual sky instead
@@ -55,19 +69,22 @@ struct SkyScreen: View {
                 arPaused: photo.arPaused,
                 onDiscover: { c, camera in
                     collect(c, camera: camera)
-                }
+                },
+                onAimedUp: { aimedUp = $0 },
+                quietTargetLabel: photo.isBusy
             )
             .ignoresSafeArea()
 
-            SkyPhotoOverlay(phase: photo.phase, shutterCount: photo.shutterCount,
-                            analyzing: photo.isAnalyzing, debugSummary: photo.debugSummary)
-
-            // what you're aiming at: a fill-up ring while collecting, a seal if already collected
-            if let target {
+            // what you're aiming at: a fill-up ring while collecting, a seal if already collected.
+            // Hidden while the photo card is up, so the two never draw over each other.
+            if let target, !photo.isBusy, !checking.contains(target.name) {
                 TargetRingView(target: target)
                     .allowsHitTesting(false)
                     .transition(.opacity)
             }
+
+            SkyPhotoOverlay(phase: photo.phase, shutterCount: photo.shutterCount,
+                            analyzing: photo.isAnalyzing, subjectName: photo.subjectName)
 
             VStack {
                 if showHint {
@@ -78,10 +95,20 @@ struct SkyScreen: View {
                     Text(toast)
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(Color(red: 1, green: 0.85, blue: 0.5))
+                        .multilineTextAlignment(.center)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
                         .background(.ultraThinMaterial, in: Capsule())
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                if showPointUp {
+                    Label("Point up at the sky", systemImage: "arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .transition(.opacity)
                 }
                 captureButton
             }
@@ -90,6 +117,8 @@ struct SkyScreen: View {
             .animation(.easeOut(duration: 0.25), value: showHint)
             .animation(.easeOut(duration: 0.2), value: target?.name)
             .animation(.easeOut(duration: 0.2), value: canCapture)
+            .animation(.easeOut(duration: 0.2), value: showPointUp)
+            .animation(.easeOut(duration: 0.2), value: photo.isBusy)
         }
         .task {
             location.start()
@@ -136,30 +165,55 @@ struct SkyScreen: View {
         .padding(.top, 8)
     }
 
-    /// Collects instantly, then takes the sky photo in the background (real camera only).
-    /// A set cutscene triggered by this find waits until the shutter has fired.
+    /// The capture button was pressed on a ready constellation. With a camera, nothing is announced
+    /// until the photo has been checked: the photo runs, "Checking photo…" shows, then `finish`
+    /// collects it (or not). Without a camera (simulator, no permission) it's collected right away.
     private func collect(_ c: PlacedConstellation, camera: ARCameraSnapshot?) {
-        let willShoot = camera != nil && SkyPhotoSession.canShoot && !photo.isBusy
-        if willShoot { store.holdsCutscenes = true }
-        guard store.discover(c.name, place: location.placeName) else {
-            store.holdsCutscenes = false
+        guard !store.isDiscovered(c.name), !checking.contains(c.name) else { return }
+        let demo = demoMode
+        guard let camera, SkyPhotoSession.canShoot, !photo.isBusy else {
+            finish(nil, name: c.name, demo: demo)
             return
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        showToast("✦ Discovered \(c.name)")
-
-        guard willShoot, let camera else { return }
-        let context = SkyShotContext(constellationID: c.id, constellationName: c.name,
+        checking.insert(c.name)
+        var context = SkyShotContext(constellationID: c.id, constellationName: c.name,
                                      latitude: location.latitude, longitude: location.longitude,
-                                     takenAt: .now, arCamera: camera)
-        photo.shoot(context) { store.holdsCutscenes = false }
+                                     hasLocation: !location.usingFallback, takenAt: .now, arCamera: camera)
+        context.demoMode = demo
+        photo.shoot(context) { reading in
+            checking.remove(c.name)
+            finish(reading, name: c.name, demo: demo)
+        }
     }
 
+    /// Saves the reading, then collects the constellation (gold, haptic, set cutscene, toast) or
+    /// explains why it wasn't collected.
+    private func finish(_ reading: SkyPhotoReading?, name: String, demo: Bool) {
+        if let reading { readings.add(reading) }
+        switch CaptureVerdict.decide(reading, name: name, demoMode: demo) {
+        case .reject(let text):
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            showToast(text)
+        case .collect(let text, let spotted):
+            guard store.discover(name, place: location.placeName) else { return }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            showToast(text)
+            if spotted && store.markSpotted(name) {
+                showToast("✦ Spotted \(name) · 2× points")
+            }
+        }
+    }
+
+    /// Queues a toast; each one disappears on its own after `SkyReadingTuning.toastDuration`.
     private func showToast(_ text: String) {
-        toast = text
+        toastQueue.append(text)
+        guard toast == nil else { return }
         Task {
-            try? await Task.sleep(for: .seconds(2))
-            if toast == text { toast = nil }
+            while !toastQueue.isEmpty {
+                toast = toastQueue.removeFirst()
+                try? await Task.sleep(for: SkyReadingTuning.toastDuration)
+            }
+            toast = nil
         }
     }
 
@@ -235,4 +289,5 @@ struct ConstellationInfoView: View {
 #Preview {
     SkyScreen()
         .environment(DiscoveryStore())
+        .environment(SkyReadingStore(fileURL: nil))
 }
