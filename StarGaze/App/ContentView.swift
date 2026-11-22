@@ -125,8 +125,10 @@ struct ContentView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
         .environment(AuthService.preview(user: .preview))
         .environment(SupabaseService.preview())
 }
+#endif

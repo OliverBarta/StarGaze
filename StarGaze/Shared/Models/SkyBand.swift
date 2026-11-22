@@ -32,14 +32,4 @@ nonisolated enum SkyBand: String, Codable, CaseIterable, Sendable {
         case .dark: "Dark sky"
         }
     }
-
-    var summary: String {
-        switch self {
-        case .city: "Only the brightest stars are visible from here."
-        case .brightSuburban: "A few bright constellations show through the glow."
-        case .suburban: "The main constellations are easy to see, but not the Milky Way."
-        case .rural: "Plenty of stars, and the Milky Way on a good night."
-        case .dark: "A truly dark sky."
-        }
-    }
 }

@@ -61,7 +61,7 @@ final class SkyPhotoSession {
         do {
             let captured = try await capturer.capture()
             let summary = ShotMotion.summarize(motion.stop(), from: captured.exposureStart,
-                                               to: captured.exposureEnd, isTrueNorth: motion.isTrueNorth)
+                                               to: captured.exposureEnd)
             photo = SkyPhoto(context: context, captured: captured, motion: summary)
         } catch {
             logger.error("Sky photo failed: \(String(describing: error))")

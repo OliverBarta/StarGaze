@@ -21,6 +21,7 @@ struct FriendCaptureHeader: View {
     }
 }
 
+#if DEBUG
 #Preview("Friend without avatar") {
     let capture = MockFriendsDataSource.sampleCaptures[1]
     ScrollView {
@@ -31,3 +32,4 @@ struct FriendCaptureHeader: View {
     }
     .background(Color(.systemGroupedBackground))
 }
+#endif

@@ -60,6 +60,7 @@ struct SignInView: View {
     }
 }
 
+#if DEBUG
 #Preview("Signed out") {
     SignInView()
         .environment(AuthService.preview(user: nil))
@@ -69,3 +70,4 @@ struct SignInView: View {
     SignInView()
         .environment(AuthService.preview(user: nil, errorMessage: "Login was cancelled. Tap Log In to try again."))
 }
+#endif

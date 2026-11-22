@@ -67,7 +67,6 @@ nonisolated enum SkyReadingTuning {
 
     /// Detected stars → Bortle class, brightest sky first match wins from the top.
     /// Rough bands for a ~1 s handheld exposure; a phone can't tell Bortle 1–2 apart from 3.
-    /// TODO(Part 5): replace with detected vs. expected catalog stars.
     static let bortleForStarCount: [(minStars: Int, bortle: Int)] = [
         (150, 3), (80, 4), (40, 5), (20, 6), (10, 7), (4, 8),
     ]

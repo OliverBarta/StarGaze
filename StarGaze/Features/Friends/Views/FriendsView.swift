@@ -11,7 +11,7 @@ struct FriendsView: View {
     @State private var viewModel: FriendsViewModel
     @State private var isShowingAddFriend = false
 
-    init(viewModel: FriendsViewModel = FriendsViewModel(dataSource: MockFriendsDataSource())) {
+    init(viewModel: FriendsViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
 
@@ -101,19 +101,20 @@ struct FriendsView: View {
     }
 }
 
+#if DEBUG
 #Preview("Feed") {
-    FriendsView()
+    FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource()))
         .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Feed, dark") {
-    FriendsView()
+    FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource()))
         .preferredColorScheme(.dark)
         .environment(AuthService.preview(user: .preview))
 }
 
 #Preview("Feed, large text") {
-    FriendsView()
+    FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource()))
         .environment(\.dynamicTypeSize, .accessibility2)
         .environment(AuthService.preview(user: .preview))
 }
@@ -132,3 +133,4 @@ struct FriendsView: View {
     FriendsView(viewModel: FriendsViewModel(dataSource: MockFriendsDataSource(shouldFail: true)))
         .environment(AuthService.preview(user: .preview))
 }
+#endif

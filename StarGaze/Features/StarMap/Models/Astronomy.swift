@@ -58,8 +58,6 @@ struct PlacedConstellation: Identifiable {
     let art: ArtEntry?
     let artGrid: [SIMD3<Float>]     // illustration mesh corners on the sky
 
-    var isAboveHorizon: Bool { centerAlt > 0 }
-
     var directionText: String {
         "\(Int(centerAlt.rounded()))° up, \(Astronomy.compassName(azDeg: centerAz))"
     }

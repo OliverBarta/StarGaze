@@ -54,6 +54,7 @@ struct LeaderboardRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Friends without avatars") {
     let standings = FriendStanding.ranked(from: MockFriendsDataSource.sampleCaptures, since: .distantPast)
     VStack(spacing: 0) {
@@ -63,3 +64,4 @@ struct LeaderboardRow: View {
     }
     .background(Color(.secondarySystemGroupedBackground))
 }
+#endif

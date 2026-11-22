@@ -17,9 +17,6 @@ nonisolated struct SkyPhotoReading: Codable, Identifiable, Equatable, Sendable {
     var exposureSeconds: Double
     var iso: Double
     var detectedStars: Int?
-    /// Filled in once the deeper star catalog is used (Part 5).
-    var expectedStars: Int?
-    var limitingMagnitude: Double?
     var relativeSkyGlow: Double?
     var bortle: Int
     var band: SkyBand

@@ -329,7 +329,9 @@ struct StargazingSpotsView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     StargazingSpotsView()
         .environment(SupabaseService.preview())
 }
+#endif
