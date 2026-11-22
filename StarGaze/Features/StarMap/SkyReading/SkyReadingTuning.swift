@@ -63,6 +63,19 @@ nonisolated enum SkyReadingTuning {
     /// Give up on Gemini after this long; the reading then has no quality check.
     static let geminiTimeoutSeconds: TimeInterval = 20
 
+    // MARK: Device evidence
+
+    /// Camera at least this far above the horizon counts as aimed at the sky, so Gemini's
+    /// "not a sky photo" needs high confidence to count.
+    static let minSkyElevationDegrees = 20.0
+    /// Peak rotation above this during the exposure: "Phone moved". A first guess; tune outdoors
+    /// (handheld peaks are often 1–2°/s, and the detector's streak check catches real smearing).
+    static let maxSteadyRotationDegreesPerSecond = 3.0
+    /// The detector saw streaks if at least this many blobs were rejected as elongated…
+    static let minStreaksForBlur = 5
+    /// …and they were at least this share of all star-like blobs.
+    static let streakFractionForBlur = 0.5
+
     // MARK: Motion
 
     /// Device-motion sample rate while shooting.

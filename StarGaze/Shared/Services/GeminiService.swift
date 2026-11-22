@@ -89,18 +89,27 @@ final class GeminiService {
     Only flag the photo if clouds, lights in frame, haze, blur, or a non-sky subject explain the missing stars. \
     Most photos come from cities, so a featureless orange or grey-blue clear sky is normal and fine.
 
-    - isNightSky: false if the photo mostly shows the ground, a room, a ceiling, a screen, or daytime \
-    or twilight sky, or if it is almost entirely black with no sky glow, gradient or stars at all \
-    (lens covered). A dark but visibly sky-like frame is still a night sky.
-    - cloudCover: "none", "partial" or "overcast" for the visible sky. Use "overcast" only when cloud \
-    covers almost all of it (often a uniform lit cloud deck with visible texture). A smooth, even city \
-    glow is not cloud.
+    Judge only what the photo shows. Don't flag a photo because it looks processed, smooth, edited \
+    or artificial: grainy or flat-looking sky is normal for these phones.
+
+    - isNightSky: false only if the photo mostly shows the ground, a room, a ceiling, a wall, a screen, \
+    or daytime or twilight sky, or if it is almost entirely black with no sky glow, gradient or stars at all \
+    (lens covered). A uniform orange, brown or grey glow with few or no stars is a light-polluted night \
+    sky, not a wall or ceiling. Buildings, roofs, trees or wires at the edges are obstructions, not a reason \
+    for false. A dark but visibly sky-like frame is still a night sky.
+    - cloudCover: "none", "partial" or "overcast" for the visible sky. Clouds show as mottled, billowy or \
+    patchy brightness: lighter lumps and darker gaps with soft edges, often lit orange from below. Use \
+    "overcast" when that texture covers almost all of the sky, "partial" when it covers some of it. \
+    A smooth glow that only brightens toward the horizon, without lumps, is not cloud.
     - obstructions: everything that applies, or an empty list:
       "trees", "buildings": blocking part of the sky.
-      "streetlight": any streetlight, lamp, floodlight, window or other bright artificial light inside the frame.
+      "streetlight": a streetlight, lamp, floodlight, window or other bright artificial light source \
+    inside the frame.
       "moon_glare": the Moon in the frame or its glare washing out part of the sky.
-      "haze": fog, haze or smoke.
-      "blur": heavy motion blur or out of focus (stars smeared into lines or blobs).
+      "haze": fog, mist, haze or smoke. Cues: halos or large soft glowing patches around lights, a milky \
+    veil over the scene, trees or buildings fading or going soft into the mist, low contrast everywhere.
+      "blur": stars drawn as lines, streaks, arcs or circles instead of points. Star trails count as blur \
+    even when they look intentional. Also heavy shake or out-of-focus.
       "lens": smudged or fogged lens, or a finger or object partly covering it.
       "other": anything else blocking the sky.
     - estimatedVisibleStars: how many individual stars you can make out (0 if none). Don't count \

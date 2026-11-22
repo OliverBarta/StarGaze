@@ -106,7 +106,8 @@ final class SkyPhotoSession {
         }
         #if DEBUG
         if let analysis {
-            let issues = SkyReadingIssue.issues(from: analysis).map(\.label)
+            let issues = SkyReadingIssue.issues(from: analysis, device: Self.deviceEvidence(photo, detected?.result))
+                .map(\.label)
             showDebugSummary(summary + String(format: " · Gemini %d★ B%d %@%@ · %@", analysis.estimatedVisibleStars,
                                               analysis.skyBrightness, analysis.targetPatternVisible ? "pattern " : "",
                                               analysis.confidence.rawValue,
@@ -115,6 +116,18 @@ final class SkyPhotoSession {
             showDebugSummary(summary + " · Gemini failed")
         }
         #endif
+    }
+
+    /// What the phone measured itself, which outranks Gemini on "sky?" and "blurred?".
+    private nonisolated static func deviceEvidence(_ photo: SkyPhoto,
+                                                   _ detection: StarDetectionResult?) -> SkyDeviceEvidence {
+        let gravity = photo.motion?.gravity
+        return SkyDeviceEvidence(
+            cameraElevationDegrees: gravity.flatMap { SkyDeviceEvidence.cameraElevationDegrees(gravity: ($0.x, $0.y, $0.z)) },
+            maxRotationDegreesPerSecond: photo.motion?.maxRotationDegreesPerSecond,
+            detectedStars: detection?.starCount,
+            elongatedRejections: detection?.rejections.elongated
+        )
     }
 
     /// The photo rotated the way the phone was held, so Gemini sees the sky the right way up.
