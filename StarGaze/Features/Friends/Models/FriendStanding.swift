@@ -9,6 +9,8 @@ struct FriendStanding: Identifiable, Hashable {
     let friend: Friend
     let points: Int
     let rank: Int
+    /// The signed-in user's own row.
+    var isMe = false
 
     var id: Friend.ID {
         friend.id
@@ -16,7 +18,9 @@ struct FriendStanding: Identifiable, Hashable {
 
     /// Totals each friend's points for captures on or after `startDate`, highest first.
     /// Each constellation counts once per friend in that window, so rescanning it adds nothing.
-    static func ranked(from captures: [FriendCapture], since startDate: Date) -> [FriendStanding] {
+    /// With `me`, the user always gets a row (0 points if they have no captures this week);
+    /// pass their captures in `captures` with `friend == me`.
+    static func ranked(from captures: [FriendCapture], since startDate: Date, me: Friend? = nil) -> [FriendStanding] {
         var seen = Set<String>()
         let counted = captures.filter { capture in
             guard capture.date >= startDate else { return false }
@@ -25,9 +29,12 @@ struct FriendStanding: Identifiable, Hashable {
         }
         let byFriend = Dictionary(grouping: counted, by: \.friend.id)
 
-        let totals: [(friend: Friend, points: Int)] = byFriend.values.compactMap { friendCaptures in
+        var totals: [(friend: Friend, points: Int)] = byFriend.values.compactMap { friendCaptures in
             guard let friend = friendCaptures.first?.friend else { return nil }
             return (friend, friendCaptures.reduce(0) { $0 + $1.points })
+        }
+        if let me, byFriend[me.id] == nil {
+            totals.append((me, 0))
         }
 
         let sorted = totals.sorted {
@@ -35,7 +42,8 @@ struct FriendStanding: Identifiable, Hashable {
         }
 
         return sorted.enumerated().map { index, total in
-            FriendStanding(friend: total.friend, points: total.points, rank: index + 1)
+            FriendStanding(friend: total.friend, points: total.points, rank: index + 1,
+                           isMe: total.friend.id == me?.id)
         }
     }
 }

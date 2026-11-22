@@ -71,7 +71,8 @@ struct SkyScreen: View {
                     collect(c, camera: camera)
                 },
                 onAimedUp: { aimedUp = $0 },
-                quietTargetLabel: photo.isBusy
+                quietTargetLabel: photo.isBusy,
+                allowLowAim: demoMode
             )
             .ignoresSafeArea()
 

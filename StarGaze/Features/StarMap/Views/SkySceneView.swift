@@ -32,6 +32,8 @@ struct SkySceneView: UIViewRepresentable {
     var onAimedUp: (Bool) -> Void = { _ in }
     /// Fades the targeted constellation's 3D name label (while the photo card is on screen).
     var quietTargetLabel = false
+    /// Demo mode: the ring fills even when the phone is aimed below the sky.
+    var allowLowAim = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(useAR: useAR, onTap: onTap)
@@ -79,6 +81,7 @@ struct SkySceneView: UIViewRepresentable {
         c.onDiscover = onDiscover
         c.onAimedUp = onAimedUp
         c.quietTargetLabel = quietTargetLabel
+        c.allowLowAim = allowLowAim
         c.syncDiscovered(discovered)
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
@@ -114,6 +117,7 @@ struct SkySceneView: UIViewRepresentable {
         var onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void = { _, _ in }
         var onAimedUp: (Bool) -> Void = { _ in }
         var quietTargetLabel = false
+        var allowLowAim = false
         private var aimedUp: Bool?
         var arConfiguration: ARWorldTrackingConfiguration?
         private var arIsPaused = false
@@ -289,10 +293,11 @@ struct SkySceneView: UIViewRepresentable {
             let candidates = ConstellationTargeting.candidates(for: forward, among: figures) {
                 !self.discovered.contains($0.name)
             }
-            tracker.update(candidates: candidates, dt: dt)
+            // Same hysteresis state as the "Point up at the sky" hint, so the ring and hint agree.
+            reportAim(forward)
+            tracker.update(candidates: candidates, dt: dt, canFill: aimedUp != false || allowLowAim)
 
             report(currentTarget())
-            reportAim(forward)
         }
 
         /// World +y is up in both AR and the virtual sky, so elevation = asin(forward.y).

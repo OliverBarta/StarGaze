@@ -23,8 +23,16 @@ struct LeaderboardRow: View {
 
             HStack(spacing: Metrics.xSmall) {
                 Text(standing.friend.name)
-                    .font(.body)
+                    .font(standing.isMe ? .body.weight(.semibold) : .body)
                     .lineLimit(2)
+                if standing.isMe {
+                    Text("You")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.15), in: Capsule())
+                }
                 if standing.rank == 1 {
                     Image(systemName: "crown.fill")
                         .font(.footnote)
@@ -41,6 +49,7 @@ struct LeaderboardRow: View {
         }
         .padding(.horizontal, Metrics.large)
         .padding(.vertical, Metrics.medium)
+        .background(standing.isMe ? Color.accentColor.opacity(0.08) : .clear)
         .accessibilityElement(children: .combine)
     }
 }

@@ -8,8 +8,12 @@ import Observation
 
 @Observable
 final class FriendsViewModel {
-    /// Sorted newest first.
+    /// Friends' captures, sorted newest first. The feed shows only these.
     private(set) var captures: [FriendCapture] = []
+    /// The user's own captures, for the leaderboard only.
+    private(set) var myCaptures: [FriendCapture] = []
+    /// The user's leaderboard identity.
+    private(set) var me = FriendsViewModel.fallbackMe
     /// True only during the initial load; pull to refresh uses the system indicator instead.
     private(set) var isLoading = false
     private(set) var errorMessage: String?
@@ -19,16 +23,39 @@ final class FriendsViewModel {
 
     private let dataSource: any FriendsDataSource
     private let catalog: any ConstellationCatalog
+    /// The user's finds on this device: the fallback when Supabase can't return their captures,
+    /// and the only place Spotted is known.
+    private let localFinds: () -> [DiscoveryStore.Discovery]
 
-    init(dataSource: any FriendsDataSource, catalog: any ConstellationCatalog = JSONConstellationCatalog()) {
+    /// Used when the user's profile isn't known yet.
+    static let fallbackMe = Friend(id: "local|me", name: "You")
+
+    init(dataSource: any FriendsDataSource, catalog: any ConstellationCatalog = JSONConstellationCatalog(),
+         localFinds: @escaping () -> [DiscoveryStore.Discovery] = { [] }) {
         self.dataSource = dataSource
         self.catalog = catalog
+        self.localFinds = localFinds
     }
 
-    /// Leaderboard for the last 7 days, highest points first.
+    /// Leaderboard for the last 7 days, highest points first, including the user.
     var standings: [FriendStanding] {
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .distantPast
-        return FriendStanding.ranked(from: captures, since: startDate)
+        return FriendStanding.ranked(from: captures + myCaptures, since: startDate, me: me)
+    }
+
+    /// The user's captures: from Supabase when available, otherwise the local finds. Spotted comes
+    /// from the local finds either way (the server doesn't store levels).
+    static func myCaptures(remote: [FriendCapture]?, local: [DiscoveryStore.Discovery], me: Friend) -> [FriendCapture] {
+        let spotted = Set(local.filter { $0.level == .spotted }.map { ConstellationName.normalizedKey(for: $0.name) })
+        let base = remote ?? local.map {
+            FriendCapture(id: UUID(), friend: me, constellationName: $0.name, locationName: $0.place, date: $0.date)
+        }
+        return base.map { capture in
+            var mine = capture
+            mine.friend = me
+            mine.isSpotted = spotted.contains(ConstellationName.normalizedKey(for: capture.constellationName))
+            return mine
+        }
     }
 
     func load() async {
@@ -68,6 +95,9 @@ final class FriendsViewModel {
         do {
             let fetched = try await dataSource.fetchCaptures()
             captures = fetched.sorted { $0.date > $1.date }
+            let remoteMine = try? await dataSource.fetchMyCaptures()
+            me = dataSource.currentUser ?? Self.fallbackMe
+            myCaptures = Self.myCaptures(remote: remoteMine, local: localFinds(), me: me)
             errorMessage = nil
             hasLoaded = true
         } catch is CancellationError {

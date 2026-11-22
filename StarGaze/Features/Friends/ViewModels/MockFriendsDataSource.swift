@@ -9,6 +9,8 @@ struct MockFriendsDataSource: FriendsDataSource {
     var captures: [FriendCapture] = MockFriendsDataSource.sampleCaptures
     var delay: Duration = .seconds(1)
     var shouldFail = false
+    var me: Friend? = MockFriendsDataSource.alex
+    var myCaptures: [FriendCapture] = MockFriendsDataSource.sampleMyCaptures
 
     func fetchCaptures() async throws -> [FriendCapture] {
         try await Task.sleep(for: delay)
@@ -24,6 +26,15 @@ struct MockFriendsDataSource: FriendsDataSource {
             throw FollowError.userNotFound
         }
     }
+
+    var currentUser: Friend? { me }
+
+    func fetchMyCaptures() async throws -> [FriendCapture] {
+        if shouldFail {
+            throw URLError(.notConnectedToInternet)
+        }
+        return myCaptures
+    }
 }
 
 extension MockFriendsDataSource {
@@ -31,6 +42,14 @@ extension MockFriendsDataSource {
     static let jordan = Friend(id: "mock|jordan", name: "Jordan Okafor")
     static let priya = Friend(id: "mock|priya", name: "Priya Sharma")
     static let liam = Friend(id: "mock|liam", name: "Liam Tremblay")
+    static let alex = Friend(id: "mock|alex", name: "Alex Rivera")
+
+    /// The signed-in user's own finds: one Spotted (double points).
+    static var sampleMyCaptures: [FriendCapture] {
+        var lyra = capture(alex, "Lyra", at: "Springbank Park", hoursAgo: 12)
+        lyra.isSpotted = true
+        return [lyra, capture(alex, "Orion", at: "Springbank Park", hoursAgo: 40)]
+    }
 
     /// Dates are relative to now, so the 7-day leaderboard always has data.
     static var sampleCaptures: [FriendCapture] {
@@ -48,7 +67,7 @@ extension MockFriendsDataSource {
         ]
     }
 
-    private static func capture(
+    static func capture(
         _ friend: Friend,
         _ constellation: String,
         at location: String,

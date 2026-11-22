@@ -11,9 +11,11 @@ nonisolated struct TargetTracker: Sendable {
     private var challengerID: String?
     private var challengerTime: Double = 0
 
-    mutating func update(candidates: [TargetCandidate], dt: Double) {
+    /// `canFill` false (phone aimed below the sky) keeps targeting but lets progress drain,
+    /// exactly as when leaving a target.
+    mutating func update(candidates: [TargetCandidate], dt: Double, canFill: Bool = true) {
         updateTarget(candidates, dt: dt)
-        updateProgress(candidates, dt: dt)
+        updateProgress(candidates, dt: dt, canFill: canFill)
     }
 
     /// Call after collecting so the finished constellation starts fresh.
@@ -47,9 +49,9 @@ nonisolated struct TargetTracker: Sendable {
         }
     }
 
-    private mutating func updateProgress(_ candidates: [TargetCandidate], dt: Double) {
+    private mutating func updateProgress(_ candidates: [TargetCandidate], dt: Double, canFill: Bool) {
         let current = candidates.first { $0.id == currentID }
-        if let current, current.isCollectible {
+        if canFill, let current, current.isCollectible {
             if progressID != current.id {
                 progressID = current.id
                 progress = 0

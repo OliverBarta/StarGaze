@@ -57,6 +57,21 @@ final class SupabaseService {
         }
     }
 
+    /// One row of `captures`.
+    struct CaptureRow: Decodable {
+        let id: UUID
+        let constellationName: String
+        let locationName: String
+        let capturedAt: Date
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case constellationName = "constellation_name"
+            case locationName = "location_name"
+            case capturedAt = "captured_at"
+        }
+    }
+
     /// Set once `syncProfile(for:)` succeeds.
     private(set) var profile: SocialProfile?
 
@@ -157,6 +172,14 @@ final class SupabaseService {
         try await send(
             "POST", "captures", query: ["on_conflict": "user_id,constellation_name,captured_at"],
             body: rows, prefer: "resolution=ignore-duplicates,return=minimal")
+    }
+
+    /// One user's captures (RLS allows the user's own and those of people they follow).
+    func fetchCaptures(userID: String) async throws -> [CaptureRow] {
+        try await request("GET", "captures", query: [
+            "select": "id,constellation_name,location_name,captured_at",
+            "user_id": "eq.\(userID)",
+        ])
     }
 
     /// Captures by everyone the user follows, newest first.

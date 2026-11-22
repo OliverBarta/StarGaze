@@ -15,6 +15,12 @@ protocol FriendsDataSource {
 
     /// Follows the user with this username, so their captures appear in `fetchCaptures()`.
     func follow(username: String) async throws
+
+    /// The signed-in user, for their own leaderboard row (nil until their profile is known).
+    var currentUser: Friend? { get }
+
+    /// The signed-in user's own captures, for the leaderboard only (never the feed).
+    func fetchMyCaptures() async throws -> [FriendCapture]
 }
 
 enum FollowError: Error {

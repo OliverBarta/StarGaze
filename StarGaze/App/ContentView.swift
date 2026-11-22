@@ -28,7 +28,8 @@ struct ContentView: View {
                     StargazingSpotsView()
                 }
                 Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
-                    FriendsView(viewModel: FriendsViewModel(dataSource: SupabaseFriendsDataSource(service: supabase)))
+                    FriendsView(viewModel: FriendsViewModel(dataSource: SupabaseFriendsDataSource(service: supabase),
+                                                           localFinds: { [store] in Array(store.discoveries.values) }))
                 }
                 Tab("Collection", systemImage: "square.grid.2x2", value: AppTab.collection) {
                     CollectionView(constellations: store.cards)
