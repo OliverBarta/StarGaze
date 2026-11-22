@@ -62,15 +62,9 @@ struct FriendsView: View {
             }
         } else if !viewModel.hasLoaded {
             FriendsLoadingView()
-        } else if viewModel.captures.isEmpty {
-            ScrollView {
-                FriendsEmptyView()
-                    .containerRelativeFrame([.horizontal, .vertical])
-            }
-            .refreshable {
-                await viewModel.refresh()
-            }
         } else {
+            // The leaderboard always shows (you and your friends, at 0 points if needed), even
+            // when nobody has found anything yet.
             feed
         }
     }
@@ -85,10 +79,15 @@ struct FriendsView: View {
                 VStack(alignment: .leading, spacing: Metrics.small) {
                     Text("Recent finds")
                         .font(.title3.bold())
-                    LazyVStack(spacing: Metrics.large) {
-                        ForEach(viewModel.captures) { capture in
-                            CaptureCardView(content: viewModel.cardContent(for: capture)) {
-                                FriendCaptureHeader(friend: capture.friend)
+                    if viewModel.captures.isEmpty {
+                        FriendsEmptyView()
+                            .padding(.vertical, Metrics.large)
+                    } else {
+                        LazyVStack(spacing: Metrics.large) {
+                            ForEach(viewModel.captures) { capture in
+                                CaptureCardView(content: viewModel.cardContent(for: capture)) {
+                                    FriendCaptureHeader(friend: capture.friend)
+                                }
                             }
                         }
                     }

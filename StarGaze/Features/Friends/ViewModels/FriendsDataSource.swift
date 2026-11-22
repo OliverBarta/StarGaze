@@ -21,6 +21,9 @@ protocol FriendsDataSource {
 
     /// The signed-in user's own captures, for the leaderboard only (never the feed).
     func fetchMyCaptures() async throws -> [FriendCapture]
+
+    /// Everyone the user follows, so friends without captures still get a 0-point leaderboard row.
+    func fetchFriends() async throws -> [Friend]
 }
 
 enum FollowError: Error {

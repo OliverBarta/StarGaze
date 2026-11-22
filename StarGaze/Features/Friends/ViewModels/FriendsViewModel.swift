@@ -12,6 +12,8 @@ final class FriendsViewModel {
     private(set) var captures: [FriendCapture] = []
     /// The user's own captures, for the leaderboard only.
     private(set) var myCaptures: [FriendCapture] = []
+    /// Everyone the user follows (including friends with no captures).
+    private(set) var friends: [Friend] = []
     /// The user's leaderboard identity.
     private(set) var me = FriendsViewModel.fallbackMe
     /// True only during the initial load; pull to refresh uses the system indicator instead.
@@ -40,7 +42,7 @@ final class FriendsViewModel {
     /// Leaderboard for the last 7 days, highest points first, including the user.
     var standings: [FriendStanding] {
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .distantPast
-        return FriendStanding.ranked(from: captures + myCaptures, since: startDate, me: me)
+        return FriendStanding.ranked(from: captures + myCaptures, since: startDate, me: me, everyone: friends)
     }
 
     /// The user's captures: from Supabase when available, otherwise the finds already loaded into
@@ -95,6 +97,7 @@ final class FriendsViewModel {
         do {
             let fetched = try await dataSource.fetchCaptures()
             captures = fetched.sorted { $0.date > $1.date }
+            if let fetchedFriends = try? await dataSource.fetchFriends() { friends = fetchedFriends }
             let remoteMine = try? await dataSource.fetchMyCaptures()
             me = dataSource.currentUser ?? Self.fallbackMe
             myCaptures = Self.myCaptures(remote: remoteMine, local: localFinds(), me: me)

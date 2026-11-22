@@ -11,6 +11,8 @@ struct MockFriendsDataSource: FriendsDataSource {
     var shouldFail = false
     var me: Friend? = MockFriendsDataSource.alex
     var myCaptures: [FriendCapture] = MockFriendsDataSource.sampleMyCaptures
+    var friends: [Friend] = [MockFriendsDataSource.maya, MockFriendsDataSource.jordan,
+                             MockFriendsDataSource.priya, MockFriendsDataSource.liam]
 
     func fetchCaptures() async throws -> [FriendCapture] {
         try await Task.sleep(for: delay)
@@ -34,6 +36,13 @@ struct MockFriendsDataSource: FriendsDataSource {
             throw URLError(.notConnectedToInternet)
         }
         return myCaptures
+    }
+
+    func fetchFriends() async throws -> [Friend] {
+        if shouldFail {
+            throw URLError(.notConnectedToInternet)
+        }
+        return friends
     }
 }
 

@@ -44,6 +44,17 @@ struct SupabaseFriendsDataSource: FriendsDataSource {
         }
     }
 
+    func fetchFriends() async throws -> [Friend] {
+        guard let me = currentUser else { throw FollowError.notSignedUp }
+        return try await service.fetchFollowedProfiles(of: me.id).map { profile in
+            Friend(
+                id: profile.id,
+                name: profile.displayName.map(\.strippingEmailDomain).flatMap { $0.isEmpty ? nil : $0 } ?? profile.username,
+                avatarURL: profile.avatarURL.flatMap(URL.init(string:))
+            )
+        }
+    }
+
     func follow(username: String) async throws {
         guard let me = service.profile else { throw FollowError.notSignedUp }
         guard username != me.username else { throw FollowError.cannotFollowSelf }

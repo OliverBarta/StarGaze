@@ -185,6 +185,16 @@ final class SupabaseService {
         ])
     }
 
+    /// Everyone this user follows, through the `follows` → `profiles` foreign key.
+    func fetchFollowedProfiles(of userID: String) async throws -> [SocialProfile] {
+        struct Row: Decodable { let followee: SocialProfile }
+        let rows: [Row] = try await request("GET", "follows", query: [
+            "select": "followee:profiles!follows_followee_id_fkey(id,username,display_name,avatar_url)",
+            "follower_id": "eq.\(userID)",
+        ])
+        return rows.map(\.followee)
+    }
+
     /// Captures by everyone the user follows, newest first.
     func fetchFeed(limit: Int = 200) async throws -> [FeedItem] {
         try await request("GET", "feed", query: ["select": "*", "limit": "\(limit)"])
