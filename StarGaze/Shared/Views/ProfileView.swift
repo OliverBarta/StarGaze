@@ -10,9 +10,6 @@ struct ProfileView: View {
     @Environment(SupabaseService.self) private var supabase: SupabaseService?
     @Environment(\.dismiss) private var dismiss
     @AppStorage(DemoMode.defaultsKey) private var demoMode = false
-    #if DEBUG
-    @AppStorage(DebugPhotoSaver.defaultsKey) private var savesSkyPhotos = false
-    #endif
 
     var body: some View {
         NavigationStack {
@@ -37,22 +34,8 @@ struct ProfileView: View {
 
                 Spacer(minLength: Metrics.xLarge)
 
-                NavigationLink {
-                    SkyReadingTestView()
-                } label: {
-                    Label("Analyze a sky photo", systemImage: "camera.viewfinder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
                 Toggle("Demo mode: allow indoor captures", isOn: $demoMode)
                     .font(.subheadline)
-
-                #if DEBUG
-                Toggle("Save sky photos to Photos (debug)", isOn: $savesSkyPhotos)
-                    .font(.subheadline)
-                #endif
 
                 Button(role: .destructive) {
                     Task { await auth.logout() }

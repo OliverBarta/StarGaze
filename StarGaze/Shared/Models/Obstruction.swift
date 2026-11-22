@@ -18,17 +18,4 @@ nonisolated enum Obstruction: String, Codable, CaseIterable, Sendable {
     /// Smudged, fogged or partly covered lens (e.g. a finger).
     case lens
     case other
-
-    var label: String {
-        switch self {
-        case .trees: "Trees"
-        case .buildings: "Buildings"
-        case .streetlight: "Streetlight"
-        case .moonGlare: "Moon glare"
-        case .haze: "Haze"
-        case .blur: "Blur"
-        case .lens: "Lens smudge"
-        case .other: "Other"
-        }
-    }
 }

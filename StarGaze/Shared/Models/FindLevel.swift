@@ -17,11 +17,4 @@ nonisolated enum FindLevel: String, Codable, CaseIterable, Sendable {
     init(reliable: Bool, analysis: SkyAnalysis?) {
         self = reliable && analysis?.targetPatternVisible == true ? .spotted : .located
     }
-
-    var label: String {
-        switch self {
-        case .spotted: "Spotted"
-        case .located: "Located"
-        }
-    }
 }

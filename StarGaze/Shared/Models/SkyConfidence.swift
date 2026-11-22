@@ -10,8 +10,4 @@ nonisolated enum SkyConfidence: String, Codable, CaseIterable, Sendable {
     case low
     case medium
     case high
-
-    var label: String {
-        rawValue.capitalized
-    }
 }

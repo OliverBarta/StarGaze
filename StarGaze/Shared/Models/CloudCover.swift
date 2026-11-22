@@ -10,12 +10,4 @@ nonisolated enum CloudCover: String, Codable, CaseIterable, Sendable {
     case none
     case partial
     case overcast
-
-    var label: String {
-        switch self {
-        case .none: "Clear"
-        case .partial: "Partly cloudy"
-        case .overcast: "Overcast"
-        }
-    }
 }

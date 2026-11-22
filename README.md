@@ -1,89 +1,108 @@
 # StarGaze ✦
 
-**Find the best place to see the stars tonight, then compete with your friends to discover them.**
+**Collect the constellations, and help map light pollution while you do it.**
 
-StarGaze is an iOS app built at **Hack Western 13** (Western University, November 2026). It tells you *where* to go stargazing, shows you *what* you're looking at once you're there, and turns every constellation you find into progress you can share with friends.
-
----
-
-## Why StarGaze
-
-### 🌌 1. Automatically finds the best stargazing spots
-Most people can't see the stars because of two things: **light pollution** and **clouds**. StarGaze maps both and does the work for you.
-
-- **Brightness layer:** a light-pollution map of the area around you. **Brighter areas on the map mean darker skies** and less light pollution.
-- **Cloud layer:** tonight's cloud cover shown in **grey**. The greyer an area, the cloudier it is.
-- **Best spots, marked automatically:** where the sky is both dark *and* clear, StarGaze places **★ star markers**, so the best places to stargaze tonight stand out at a glance.
-
-No more guessing, driving out of the city and finding a sky full of clouds.
-
-### 🏆 2. A Strava for stargazing
-Every constellation you discover counts, and your friends can see it.
-
-- **Friends feed:** see what your friends have discovered, where and when, like a run on Strava.
-- **Leaderboards:** compete with friends on how many constellations you've found this week.
-- **Show off your finds:** discoveries become shareable capture cards with rarity and points, so a rare constellation from a dark-sky park counts for more than one from your backyard.
-- **Add friends** by username and stay motivated to get outside.
+StarGaze is an iOS app built at **Hack Western 13** (Western University, November 2026). Point your phone at the sky to find and collect real constellations. Every find also takes a quick sky photo that estimates how light-polluted the sky is where you're standing. Together, players build a ground-level light-pollution map that shows everyone where the dark skies are.
 
 ---
 
-## Also inside
+## How a find works
 
-### 🔭 Point your phone at the sky
-- Hold your phone up and StarGaze draws the constellations **exactly where they are in the real sky**, using your location, the time, and the phone's compass and tilt. No photos are taken.
-- Point straight at a constellation and its **mythological figure** fades in over the stars: Orion the hunter, the Great Bear, Pegasus and more.
-- **Tap any constellation** for its story, brightest stars and best viewing season, powered by **Google Gemini**.
+1. **Point your phone at the sky.** The Stars tab draws the real constellations over the camera, right where they are, using your location, the time, and the phone's compass and motion sensors. Point at one and its mythological figure fades in over the stars: Orion the hunter, the Great Bear, Pegasus and more.
+2. **Hold steady to fill the ring.** Keep a constellation in view and a ring fills around it. The phone has to be aimed up at the sky; point it at the ground and the ring drains.
+3. **Press capture.** The phone counts down ("Hold still… 3·2·1") and takes one long-exposure sky photo.
+4. **The photo is checked.** The phone counts the stars in the photo, and Google Gemini checks that it really is a night sky and looks for clouds, streetlights, haze, blur or the Moon.
+5. **Collected.** The constellation turns gold and joins your Collection, with a toast like *"✦ Collected Orion · City sky (Bortle 8)"*. If the photo wasn't the sky (a ceiling, a wall, a screen), the find doesn't count.
 
-### ✨ Discover, collect and complete sets
-- **Discover** a constellation by holding it in view for a moment. It's added to your **Collection** with the date and place.
-- **Complete themed sets** (The Menagerie, Heroes & Gods, The Perseus Saga, The Great Hunt, The Zodiac Wheel) by finding 5 from each. Completing a set unlocks a **cinematic reveal** and stamps your collection cards.
+**Spotted finds.** If the photo is a good, clear reading and Gemini can actually see the constellation's pattern in it, the find is upgraded to **Spotted**: a gold badge and **double points**.
+
+> Identifying constellations uses only the phone's sensors, never AI. Gemini is just the quality check on the photo.
+
+---
+
+## Features
+
+### 🔭 Stars: find and collect
+- An AR sky drawn over the camera, with stick figures, star names and Stellarium artwork pinned to the real stars.
+- Tap any constellation for its story, brightest stars and best viewing season.
+- **Complete themed sets** (The Menagerie, Heroes & Gods, The Perseus Saga, The Great Hunt, The Zodiac Wheel) by finding 5 from each. Completing a set plays a cinematic reveal and stamps your collection cards.
+
+### 🌃 Every find is a light-pollution reading
+- The sky photo becomes a reading on a simple scale: **City, Bright suburban, Suburban, Rural or Dark sky**, with the Bortle number and a confidence level.
+- These are **estimates from a handheld phone camera**, not calibrated measurements. Fewer visible stars means a brighter sky.
+- Readings are only counted when conditions allow. Twilight, a moving phone, clouds, a streetlight in the frame, haze or a blurry photo mean the reading isn't counted (you still collect the constellation). A bright Moon lowers the confidence.
+- Good readings are uploaded, without personal details and with the location rounded to about 1 km, to the shared light-pollution map.
+
+### 🗺️ Light Pollution: where to go tonight
+- A **heatmap** of light-pollution readings, plus tonight's **cloud cover** with an hour-by-hour slider.
+- The **3 best spots within 25 km**, where the sky is both dark and clear, with the Moon, the best time to go and driving directions.
+- For the demo, the map is seeded with simulated readings (see `supabase/light_readings_seed.sql`). Real players' readings are added on top.
+
+### 🏆 Friends: a Strava for stargazing
+- **Feed** of what your friends have found, where and when.
+- **Weekly leaderboard** by points, including you: rarer constellations are worth more, each constellation counts once a week, and Spotted finds count double.
+- **Add friends** by username.
+
+### 🃏 Collection
+Your finds as cards with rarity, points, place and date, plus completed-set stamps and Spotted badges.
 
 ---
 
 ## How it works
 
 - **Sky positions:** each star's catalogue coordinates are converted to altitude and azimuth for your location and the current time, and refreshed as the Earth turns.
-- **Pointing:** ARKit aligns the scene to true north and gravity, so the drawn sky matches the real one as you move.
+- **Pointing:** ARKit aligns the scene to true north and gravity. Targeting compares where you're aiming with each constellation's shape (its outline), not just its centre, with a small tolerance that scales with its size.
 - **Artwork alignment:** each illustration is pinned to three real anchor stars and warped onto the sky, so the stars land on the figure.
-- **Light pollution:** based on the *New World Atlas of Artificial Night Sky Brightness* (Falchi et al., 2016), preprocessed into lightweight map tiles bundled with the app.
-- **Clouds:** live cloud-cover forecasts, combined with sky darkness to score and mark the best spots.
-- **Descriptions:** Google Gemini (`gemini-3.5-flash-lite`).
+- **Sky photo:** AVFoundation takes a ~1 s exposure at high ISO with focus near infinity, while CoreMotion records how much the phone moved. The AR session pauses for the shot so the camera is free.
+- **Star counting:** an on-device detector built with Accelerate converts the photo to linear brightness, rejects hot pixels, subtracts the sky background and keeps point-like peaks. Streaks, lights and edges are rejected.
+- **Quality check:** Google Gemini (`gemini-3.5-flash-lite`) gets the photo plus context (the target constellation and its brightest stars) and returns structured JSON: night sky or not, clouds, obstructions, and whether the pattern is visible.
+- **Estimate:** the star count gives the Bortle class. Device checks (Sun below −12°, phone motion, Moon brightness) and Gemini's checks decide whether the reading counts.
+- **Clouds:** live cloud-cover forecasts from Open-Meteo, combined with the readings to score the best spots.
+- **Backend:** Supabase (Postgres + REST) stores profiles, follows, captures and light readings. Sign-in is Auth0, connected to Supabase via third-party auth, with row-level security on every table.
 
 ---
 
 ## Tech stack
 
-Swift · SwiftUI · ARKit · SceneKit · MapKit · CoreLocation · Google Gemini API · Python (offline data preprocessing)
+Swift · SwiftUI · ARKit · SceneKit · AVFoundation · CoreMotion · Accelerate · MapKit · CoreLocation · Google Gemini API · Supabase · Auth0
 
 ---
 
 ## Getting started
 
 ### Requirements
-- Xcode with the iOS 18 SDK or newer
-- An iPhone or simulator running iOS 18+
+- Xcode 26 or newer
+- An iPhone running iOS 26 (or the simulator: see below)
 - A Google Gemini API key (free from [Google AI Studio](https://aistudio.google.com/apikey))
+- A Supabase project, and an Auth0 application set up as a Supabase third-party auth provider
 
 ### Setup
 1. Clone the repo:
    ```bash
    git clone https://github.com/OliverBarta/StarGaze.git
    ```
-2. Copy `Secrets.example.swift` to `StarGaze/Config/Secrets.swift` and add your key:
+2. Copy `Secrets.example.swift` to `StarGaze/Config/Secrets.swift` and fill it in:
    ```swift
    enum Secrets {
-       static let geminiAPIKey = "YOUR_KEY_HERE"
+       static let geminiAPIKey = "YOUR_GEMINI_KEY"
+       static let supabaseURL = "https://YOUR_PROJECT.supabase.co"
+       static let supabaseKey = "YOUR_SUPABASE_PUBLISHABLE_KEY"
    }
    ```
-   `Secrets.swift` is gitignored, so **never commit your key**.
-3. Open `StarGaze.xcodeproj`, choose a simulator or your iPhone, and press **Run**.
+   `Secrets.swift` is gitignored, so **never commit your keys**.
+3. In Supabase, run `supabase/schema.sql`. Optionally, run `supabase/light_readings_seed.sql` for the simulated demo readings.
+4. Put your Auth0 `ClientId` and `Domain` in `StarGaze/Auth0.plist`.
+5. Open `StarGaze.xcodeproj`, choose your iPhone or a simulator, and press **Run**.
 
 ### Running on an iPhone
 - In **Signing & Capabilities**, set **Team** to your own Apple ID (a free personal team works).
 - Turn on **Settings → Privacy & Security → Developer Mode**, and trust your developer profile under **Settings → General → VPN & Device Management**.
 - Allow camera and location access. Wave the phone in a figure-8 to calibrate the compass.
+- Go outside after dark: before the Sun is 12° below the horizon, readings are marked "Twilight" and don't count.
 
-> In the simulator, which has no camera, the Stars tab shows a virtual sky you can drag around.
+### Demoing indoors
+- **Profile → "Demo mode: allow indoor captures"** skips the point-up and "not a sky photo" checks, so you can collect constellations indoors. Readings taken in demo mode never go on the map.
+- In the simulator, which has no camera or compass, the Stars tab shows a virtual sky you can drag around, and finds are collected without a photo.
 
 ---
 
@@ -91,8 +110,10 @@ Swift · SwiftUI · ARKit · SceneKit · MapKit · CoreLocation · Google Gemini
 
 - **Constellation illustrations** by **Johan Meuris**, via [Stellarium](https://github.com/Stellarium/stellarium-skycultures), under the [Free Art License 1.3](https://artlibre.org/licence/lal/en/). Animation frames derived from them are shared under the same licence.
 - **Stars and constellation lines** from [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD 3-Clause).
-- **Light pollution data** from the *New World Atlas of Artificial Night Sky Brightness*, Falchi et al. (2016).
-- **Constellation descriptions** generated by Google Gemini.
+- **Light pollution atlas tiles** from the *New World Atlas of Artificial Night Sky Brightness*, Falchi et al. (2016) (CC BY-NC 4.0).
+- **Weather data** by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- **Constellation descriptions and collection card images** generated with Claude (Anthropic).
+- **Photo quality checks** by Google Gemini.
 
 ---
 

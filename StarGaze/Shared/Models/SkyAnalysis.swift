@@ -40,29 +40,3 @@ nonisolated struct SkyAnalysis: Codable, Equatable, Sendable {
         return analysis
     }
 }
-
-#if DEBUG
-extension SkyAnalysis {
-    static let previewSpotted = SkyAnalysis(
-        isNightSky: true,
-        cloudCover: .partial,
-        obstructions: [.trees],
-        estimatedVisibleStars: 14,
-        skyBrightness: 5,
-        confidence: .medium,
-        targetPatternVisible: true,
-        reason: "Night sky with a dozen or so stars visible above a tree line; some thin cloud in one corner."
-    )
-
-    static let previewLocated = SkyAnalysis(
-        isNightSky: true,
-        cloudCover: .overcast,
-        obstructions: [.streetlight, .buildings],
-        estimatedVisibleStars: 0,
-        skyBrightness: 8,
-        confidence: .high,
-        targetPatternVisible: false,
-        reason: "Uniform orange cloud lit by streetlights; no stars visible."
-    )
-}
-#endif

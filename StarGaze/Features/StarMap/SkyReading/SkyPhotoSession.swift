@@ -88,20 +88,12 @@ final class SkyPhotoSession {
     /// Failures only make the reading unreliable; they never affect the find itself.
     private func analyze(_ photo: SkyPhoto) async -> SkyPhotoReading {
         let detected = await Self.detectStars(in: photo)
-        #if DEBUG
-        if DebugPhotoSaver.isEnabled {
-            await DebugPhotoSaver.save(photo)
-            if let detected {
-                await DebugPhotoSaver.saveAnnotated(detected.image, detection: detected.result)
-            }
-        }
-        #endif
 
         let context = SkyAnalysisContext(
             constellationName: photo.context.constellationName,
             brightestStars: TargetStarCatalog.brightestStars(constellationID: photo.context.constellationID,
                                                              limit: SkyReadingTuning.contextStarCount),
-            detectedStars: detected?.result.starCount
+            detectedStars: detected?.starCount
         )
         let analysis: SkyAnalysis?
         do {
@@ -111,19 +103,18 @@ final class SkyPhotoSession {
             logger.error("Gemini sky check failed: \(String(describing: error))")
             analysis = nil
         }
-        let device = Self.deviceEvidence(photo, detected?.result)
+        let device = Self.deviceEvidence(photo, detected)
         let sky = SunMoonAstronomy.sky(at: photo.context.takenAt, latitude: photo.context.latitude,
                                        longitude: photo.context.longitude)
         let reading = SkyReadingEstimator.reading(from: SkyReadingEstimator.Input(
             context: photo.context, source: .camera, deviceModel: DeviceModel.identifier,
             exposureSeconds: photo.captured.exposureSeconds, iso: Double(photo.captured.iso),
-            detection: detected?.result, analysis: analysis, device: device, sky: sky,
+            detection: detected, analysis: analysis, device: device, sky: sky,
             hasLocation: photo.context.hasLocation, demoMode: photo.context.demoMode
         ))
         #if DEBUG
         let stars = detected.map {
-            String(format: " · %d stars (−%d) · glow %.4f", $0.result.starCount,
-                   $0.result.rejections.total, $0.result.relativeSkyGlow)
+            String(format: " · %d stars (−%d) · glow %.4f", $0.starCount, $0.rejections.total, $0.relativeSkyGlow)
         } ?? ""
         let geminiText = analysis.map {
             String(format: " · Gemini B%d %@%@", $0.skyBrightness, $0.targetPatternVisible ? "pattern " : "",
@@ -165,12 +156,10 @@ final class SkyPhotoSession {
 
     /// Off the main thread: linear luminance, hot-pixel-rejecting downscale, then detection.
     @concurrent
-    private nonisolated static func detectStars(in photo: SkyPhoto) async -> (image: LuminanceImage,
-                                                                              result: StarDetectionResult)? {
+    private nonisolated static func detectStars(in photo: SkyPhoto) async -> StarDetectionResult? {
         guard let image = LuminanceImage(cgImage: photo.captured.image,
                                          maxDimension: SkyReadingTuning.detectionMaxDimension) else { return nil }
-        let result = StarDetector.detect(in: image, exposureSeconds: photo.captured.exposureSeconds,
-                                         iso: photo.captured.iso)
-        return (image, result)
+        return StarDetector.detect(in: image, exposureSeconds: photo.captured.exposureSeconds,
+                                   iso: photo.captured.iso)
     }
 }
