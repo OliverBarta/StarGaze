@@ -9,6 +9,8 @@ struct SkyTopBar: View {
     var checkingPhoto = false
     /// A short note in the same spot as "Checking photo…" (e.g. demo-mode captures).
     var notice: String?
+    /// The compass heading is inaccurate: ask for a figure-8.
+    var needsCalibration = false
     var onCloseInstruction: () -> Void = {}
 
     var body: some View {
@@ -16,6 +18,10 @@ struct SkyTopBar: View {
             if showsInstruction {
                 instruction
                     .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            if needsCalibration {
+                calibrationPill
+                    .transition(.opacity)
             }
             if checkingPhoto {
                 checkingPill
@@ -29,6 +35,7 @@ struct SkyTopBar: View {
         .animation(.easeOut(duration: 0.25), value: showsInstruction)
         .animation(.easeOut(duration: 0.2), value: checkingPhoto)
         .animation(.easeOut(duration: 0.2), value: notice)
+        .animation(.easeOut(duration: 0.2), value: needsCalibration)
     }
 
     private var instruction: some View {
@@ -55,6 +62,16 @@ struct SkyTopBar: View {
         .padding(.trailing, 8)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    private var calibrationPill: some View {
+        Label("Move your phone in a figure-8 to calibrate", systemImage: "infinity")
+            .font(.footnote.weight(.medium))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .allowsHitTesting(false)
     }
 
     private func noticePill(_ text: String) -> some View {
@@ -85,6 +102,14 @@ struct SkyTopBar: View {
     ZStack(alignment: .top) {
         Color.black.ignoresSafeArea()
         SkyTopBar(showsInstruction: true, checkingPhoto: true)
+            .padding()
+    }
+}
+
+#Preview("Calibrate compass") {
+    ZStack(alignment: .top) {
+        Color.black.ignoresSafeArea()
+        SkyTopBar(showsInstruction: true, needsCalibration: true)
             .padding()
     }
 }

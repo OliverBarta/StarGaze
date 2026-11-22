@@ -1,8 +1,8 @@
 @preconcurrency import AVFoundation
 import VideoToolbox
 
-/// Takes one long-exposure still with the back wide camera. ARKit must be paused first, since
-/// only one session can own the camera. All AVFoundation work runs on a private serial queue.
+/// Takes one long-exposure still with the back wide camera. The live preview
+/// (`CameraPreviewSession`) must be paused first, since only one session can own the camera. All AVFoundation work runs on a private serial queue.
 ///
 /// Settings: the longest exposure the format allows (up to `targetExposureSeconds`), high ISO,
 /// focus locked near infinity, white balance locked, flash off, and `.speed` quality

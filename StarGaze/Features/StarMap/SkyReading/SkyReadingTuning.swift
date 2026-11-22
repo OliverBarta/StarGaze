@@ -8,8 +8,8 @@ nonisolated enum SkyReadingTuning {
 
     /// "Hold still… 3·2·1" before the shot.
     static let countdownSeconds = 3
-    /// Wait after pausing ARKit so it has released the camera before AVFoundation takes it.
-    static let arReleaseDelay: Duration = .milliseconds(300)
+    /// Extra wait after the live preview has stopped, before the photo session takes the camera.
+    static let cameraReleaseDelay: Duration = .milliseconds(150)
 
     // MARK: Camera
 

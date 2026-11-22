@@ -1,14 +1,14 @@
 import SwiftUI
-import ARKit
 import SceneKit
 
 /// Draws tonight's constellations as glowing, twinkling stars joined by soft light strands.
-/// - useAR = true (real iPhone): drawn over the live camera, follows where you point.
-/// - useAR = false (simulator): a dark "virtual sky" you can drag, as a developer fallback.
+/// - useCamera = true (real iPhone): drawn over the live camera feed; CoreMotion points the
+///   SceneKit camera where the phone points (`SkyCameraDriver`).
+/// - useCamera = false (simulator): a dark "virtual sky" you can drag, as a developer fallback.
 /// Whatever you point at lights up and shows its name; the rest fades back.
 /// Tapping a star or line reports which constellation was tapped.
 struct SkySceneView: UIViewRepresentable {
-    let useAR: Bool
+    let useCamera: Bool
     let constellations: [PlacedConstellation]
     let version: Int  // bumps whenever positions are recalculated
     let discovered: Set<String>
@@ -22,45 +22,46 @@ struct SkySceneView: UIViewRepresentable {
     let onTarget: (SkyTarget?) -> Void
     /// Bump to capture the constellation whose ring is full (the capture button).
     var captureCount = 0
-    /// Pauses the ARSession (camera released) while the sky photo is taken; false resumes it.
-    var arPaused = false
-    /// Fired when the capture button is pressed on a ready constellation, with where ARKit's camera
-    /// was pointing (nil without AR). Nothing turns gold here: that happens when the constellation
-    /// appears in `discovered` (after the photo check), with a celebration ring.
-    let onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void
+    /// Fired when the capture button is pressed on a ready constellation, with where the live camera
+    /// was pointing (nil in the virtual sky). Nothing turns gold here: that happens when the
+    /// constellation appears in `discovered` (after the photo check), with a celebration ring.
+    let onDiscover: (PlacedConstellation, SkyCameraPose?) -> Void
     /// Whether the camera is aimed above `SkyReadingTuning.minCaptureElevationDegrees` (reported on change).
     var onAimedUp: (Bool) -> Void = { _ in }
     /// Fades the targeted constellation's 3D name label (while the photo card is on screen).
     var quietTargetLabel = false
     /// Demo mode: the ring fills even when the phone is aimed below the sky.
     var allowLowAim = false
+    /// The compass needs calibrating (true) or is fine again (false). Live camera only.
+    var onNeedsCalibration: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(useAR: useAR, onTap: onTap)
+        Coordinator(useCamera: useCamera, onTap: onTap)
     }
 
-    func makeUIView(context: Context) -> SCNView {
+    func makeUIView(context: Context) -> UIView {
         let c = context.coordinator
-        let view: SCNView
+        let view = SCNView()
+        view.scene = SCNScene()
+        let container: UIView
 
-        if useAR {
-            let ar = ARSCNView()
-            ar.scene = SCNScene()
-            ar.automaticallyUpdatesLighting = false
-            let config = ARWorldTrackingConfiguration()
-            config.worldAlignment = .gravityAndHeading  // -z = true north, +y = up
-            ar.session.run(config)
-            c.arConfiguration = config
-            view = ar
+        if useCamera {
+            // Camera feed behind a transparent SceneKit view; CoreMotion drives the camera node.
+            view.scene?.rootNode.addChildNode(c.liveCamera)
+            view.pointOfView = c.liveCamera
+            let host = SkyCameraView(sceneView: view, cameraNode: c.liveCamera)
+            c.driver.hostView = host
+            c.driver.start()
+            host.startPreview()
+            container = host
         } else {
-            view = SCNView()
-            view.scene = SCNScene()
             view.scene?.background.contents = Coordinator.nightGradient
             view.pointOfView = c.virtualCamera
             view.scene?.rootNode.addChildNode(c.virtualCamera)
             c.addGround()
             // Developer fallback for the simulator only: drag to look around. No on-screen hint.
             view.addGestureRecognizer(UIPanGestureRecognizer(target: c, action: #selector(Coordinator.handlePan(_:))))
+            container = view
         }
 
         view.antialiasingMode = .multisampling4X
@@ -69,13 +70,14 @@ struct SkySceneView: UIViewRepresentable {
         c.view = view
         c.addHorizon()
         c.startTimer()
-        return view
+        return container
     }
 
-    func updateUIView(_ view: SCNView, context: Context) {
+    func updateUIView(_ view: UIView, context: Context) {
         let c = context.coordinator
         view.isHidden = hidden
-        view.isPlaying = !hidden
+        c.view?.isPlaying = !hidden
+        c.driver.onNeedsCalibration = onNeedsCalibration
         c.onTap = onTap
         c.onTarget = onTarget
         c.onDiscover = onDiscover
@@ -85,7 +87,6 @@ struct SkySceneView: UIViewRepresentable {
         c.syncDiscovered(discovered)
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
-        c.setARPaused(arPaused)
         if captureCount != c.lastCaptureCount {
             c.lastCaptureCount = captureCount
             // after this update pass, since capturing changes SwiftUI state
@@ -93,9 +94,10 @@ struct SkySceneView: UIViewRepresentable {
         }
     }
 
-    static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) {
+    static func dismantleUIView(_ view: UIView, coordinator: Coordinator) {
         coordinator.stopTimer()
-        (view as? ARSCNView)?.session.pause()
+        coordinator.driver.stop()
+        (view as? SkyCameraView)?.stopPreview()
     }
 
     /// The parts of one drawn constellation, so we can brighten/fade them.
@@ -111,16 +113,14 @@ struct SkySceneView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject {
-        let useAR: Bool
+        let useCamera: Bool
         var onTap: (PlacedConstellation) -> Void
         var onTarget: (SkyTarget?) -> Void = { _ in }
-        var onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void = { _, _ in }
+        var onDiscover: (PlacedConstellation, SkyCameraPose?) -> Void = { _, _ in }
         var onAimedUp: (Bool) -> Void = { _ in }
         var quietTargetLabel = false
         var allowLowAim = false
         private var aimedUp: Bool?
-        var arConfiguration: ARWorldTrackingConfiguration?
-        private var arIsPaused = false
         private(set) var discovered: Set<String> = []
         private var hasSyncedDiscovered = false
         var lastCaptureCount = 0
@@ -136,6 +136,9 @@ struct SkySceneView: UIViewRepresentable {
         private let constellationRoot = SCNNode()
         private let starFieldRoot = SCNNode()
         let virtualCamera = SCNNode()
+        /// Live camera only: the SceneKit camera CoreMotion points (field of view set by `SkyCameraView`).
+        let liveCamera = SCNNode()
+        private(set) lazy var driver = SkyCameraDriver(cameraNode: liveCamera)
 
         private var placed: [PlacedConstellation] = []
         private var drawn: [DrawnConstellation] = []
@@ -159,8 +162,8 @@ struct SkySceneView: UIViewRepresentable {
             UIColor(red: 1.00, green: 0.82, blue: 0.70, alpha: 1)   // orange-ish
         ]
 
-        init(useAR: Bool, onTap: @escaping (PlacedConstellation) -> Void) {
-            self.useAR = useAR
+        init(useCamera: Bool, onTap: @escaping (PlacedConstellation) -> Void) {
+            self.useCamera = useCamera
             self.onTap = onTap
             super.init()
             skyRoot.addChildNode(starFieldRoot)
@@ -178,6 +181,13 @@ struct SkySceneView: UIViewRepresentable {
             camera.bloomBlurRadius = 6
             virtualCamera.camera = camera
             updateVirtualCamera()
+
+            // Plain camera over the feed: no HDR or bloom, so the SceneKit view stays transparent.
+            let live = SCNCamera()
+            live.fieldOfView = 60   // replaced by the preview's real field of view once it's known
+            live.zNear = 0.1
+            live.zFar = 200
+            liveCamera.camera = live
         }
 
         // MARK: - Drawing the constellations
@@ -248,9 +258,9 @@ struct SkySceneView: UIViewRepresentable {
             // Mythological illustration, warped onto the exact patch of sky
             var artNode: SCNNode?
             if let art = c.art, c.artGrid.count == (art.grid + 1) * (art.grid + 1),
-               let image = SkyArt.image(named: art.file) {
+               let image = useCamera ? SkyArt.glowImage(named: art.file) : SkyArt.image(named: art.file) {
                 let mesh = Self.artMesh(grid: art.grid, directions: c.artGrid,
-                                        radius: radius * 1.01, image: image)
+                                        radius: radius * 1.01, image: image, overCamera: useCamera)
                 node.insertChildNode(mesh, at: 0)   // behind the lines
                 artNode = mesh
             }
@@ -323,26 +333,14 @@ struct SkySceneView: UIViewRepresentable {
                   !discovered.contains(target.placed.name) else { return }
             tracker.clearProgress()
             report(nil)
-            onDiscover(target.placed, arCameraSnapshot())
+            onDiscover(target.placed, cameraPose())
         }
 
-        /// The AR camera's pose and intrinsics right now, or nil without AR.
-        private func arCameraSnapshot() -> ARCameraSnapshot? {
-            guard let camera = (view as? ARSCNView)?.session.currentFrame?.camera else { return nil }
-            return ARCameraSnapshot(transform: camera.transform, intrinsics: camera.intrinsics,
-                                    imageResolution: camera.imageResolution)
-        }
-
-        /// Hands the camera to the sky photo and back. Resuming reuses the same configuration
-        /// without resetting tracking, so the sky stays where it was.
-        func setARPaused(_ paused: Bool) {
-            guard paused != arIsPaused, let ar = view as? ARSCNView, let arConfiguration else { return }
-            arIsPaused = paused
-            if paused {
-                ar.session.pause()
-            } else {
-                ar.session.run(arConfiguration)
-            }
+        /// Where the live camera points right now, or nil in the virtual sky.
+        private func cameraPose() -> SkyCameraPose? {
+            guard useCamera else { return nil }
+            return SkyCameraPose(orientation: liveCamera.simdOrientation,
+                                 verticalFieldOfViewDegrees: Double(liveCamera.camera?.fieldOfView ?? 0))
         }
 
         /// The ring's content: the targeted constellation, or the one whose progress is still draining.
@@ -435,7 +433,7 @@ struct SkySceneView: UIViewRepresentable {
 
         /// A (grid+1)×(grid+1) mesh whose corners sit on the sky, textured with the illustration.
         private static func artMesh(grid: Int, directions: [SIMD3<Float>], radius: Float,
-                                    image: UIImage) -> SCNNode {
+                                    image: UIImage, overCamera: Bool) -> SCNNode {
             var vertices: [SCNVector3] = []
             var uvs: [CGPoint] = []
             for j in 0...grid {
@@ -461,7 +459,9 @@ struct SkySceneView: UIViewRepresentable {
             m.diffuse.contents = image
             m.multiply.contents = UIColor(red: 0.75, green: 0.85, blue: 1.0, alpha: 1)  // cool moonlit tint
             m.lightingModel = .constant
-            m.blendMode = .add            // black background disappears, art glows into the sky
+            // Virtual sky: additive, so the black background disappears into the dark sky.
+            // Over the camera: the glow image is transparent where it's black, so blend by its alpha.
+            m.blendMode = overCamera ? .alpha : .add
             m.isDoubleSided = true
             m.writesToDepthBuffer = false
             m.readsFromDepthBuffer = false
@@ -483,7 +483,7 @@ struct SkySceneView: UIViewRepresentable {
             let buckets: [(Double, CGFloat, CGFloat)] = [
                 (1.0, 7, 1.0), (2.0, 5, 0.95), (3.0, 3.6, 0.85), (4.0, 2.6, 0.7), (5.0, 1.9, 0.55), (9, 1.4, 0.4)
             ]
-            let dim: CGFloat = useAR ? 0.6 : 1.0   // real sky is already behind the camera view
+            let dim: CGFloat = useCamera ? 0.6 : 1.0   // real sky is already behind the camera view
             var lower = -10.0
             for b in 0..<buckets.count {
                 var verts: [SCNVector3] = []
@@ -723,10 +723,7 @@ struct SkySceneView: UIViewRepresentable {
         }
 
         private func tick() {
-            if useAR, let camera = view?.pointOfView {
-                // Stars are "infinitely" far away, so the sky moves with you.
-                skyRoot.simdPosition = camera.simdWorldPosition
-            }
+            // The camera only rotates (CoreMotion), so it stays at the centre of the sky.
             let now = CACurrentMediaTime()
             let dt = min(0.1, now - (lastTick ?? now - 1.0 / 30.0))  // capped so a stall can't collect
             lastTick = now

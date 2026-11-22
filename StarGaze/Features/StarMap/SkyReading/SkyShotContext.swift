@@ -10,5 +10,5 @@ nonisolated struct SkyShotContext: Sendable {
     /// False when the location is the fallback city, so the reading can't go on the map.
     let hasLocation: Bool
     let takenAt: Date
-    let arCamera: ARCameraSnapshot
+    let cameraPose: SkyCameraPose
 }

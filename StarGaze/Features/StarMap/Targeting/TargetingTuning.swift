@@ -28,4 +28,19 @@ nonisolated enum TargetingTuning {
     static let dimFactor: CGFloat = 0.6
     /// How quickly highlight opacities ease toward their goal (per second).
     static let highlightSpeed: CGFloat = 10
+
+    // MARK: Live sky (CoreMotion)
+
+    /// Each 60 Hz frame, the camera turns this fraction of the way toward the latest attitude while
+    /// the phone is held still. Lower is steadier, higher is more responsive.
+    static let attitudeSmoothing = 0.15
+    /// …and this fraction while the phone turns at `fastRotationRadiansPerSecond` or faster, so the
+    /// sky keeps up when panning. In between it blends linearly.
+    static let attitudeSmoothingMoving = 0.6
+    /// About 57°/s: a deliberate pan.
+    static let fastRotationRadiansPerSecond = 1.0
+    /// How often CoreMotion delivers attitude.
+    static let motionUpdateInterval: Double = 1.0 / 100.0
+    /// Heading accuracy has to stay poor (or good) this long before the calibration hint changes.
+    static let calibrationHintDelay: Double = 2
 }
