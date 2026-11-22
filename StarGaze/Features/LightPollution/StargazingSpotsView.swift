@@ -6,7 +6,8 @@
 //      StargazingSpotsView()
 //          .tabItem { Label("Stargazing", systemImage: "sparkles") }
 //
-//  Shows the light-pollution map, the 3 best spots (darkness + cloud) within 25 km,
+//  Shows the light-readings heatmap, the 3 best spots (darkness from the readings
+//  + cloud) within 25 km,
 //  tonight's clouds and Moon with a time slider, and a detail card
 //  with directions. Starts at the last saved location, then switches to live GPS.
 //
@@ -17,12 +18,6 @@ import CoreLocation
 // MARK: - Configuration
 
 enum StargazingConfig {
-    /// All 1,130 world tiles + index.json are bundled in the app (LightTiles folder),
-    /// so this stays nil and everything works offline. Only set it if you later
-    /// move the tiles to hosting, e.g.
-    ///     URL(string: "https://<github-user>.github.io/<repo>/LightTiles/")
-    static let tilesBaseURL: URL? = nil
-
     /// How far from the user to look for dark spots.
     static let searchRadiusKm: Double = 25
 }
@@ -31,7 +26,6 @@ enum StargazingConfig {
 
 struct StargazingSpotsView: View {
     @Environment(SupabaseService.self) private var supabase
-    @State private var lightService = LightPollutionService(remoteBaseURL: StargazingConfig.tilesBaseURL)
     @State private var tonight = TonightConditionsService()
     @State private var location = SpotsLocationProvider()
 
@@ -104,6 +98,11 @@ struct StargazingSpotsView: View {
                 pickSpots()
                 Task { await loadDrives() }
             }
+            .onChange(of: lightReadings) {
+                // readings can arrive after the search (e.g. loaded by the heatmap toggle)
+                pickSpots()
+                Task { await loadDrives() }
+            }
             .onAppear {
                 hours = TonightConditionsService.nightHours()
                 hourIndex = 0
@@ -122,7 +121,7 @@ struct StargazingSpotsView: View {
         isSearching = true
         defer { isSearching = false }
 
-        await lightService.loadTiles(around: centre, radiusKm: StargazingConfig.searchRadiusKm)
+        if force || lightReadings.isEmpty { await loadReadings() }
         drives = [:]
         pickSpots()     // darkness only (or the cached forecast) so pins show up right away
 
@@ -132,12 +131,13 @@ struct StargazingSpotsView: View {
         await loadDrives()
     }
 
-    /// Chooses the spots from darkness and the cloud forecast at the selected hour.
+    /// Chooses the spots from the light-readings heatmap and the cloud forecast at the selected hour.
     private func pickSpots() {
         guard let centre = location.coordinate else { return }
         let time = selectedTime
-        spots = lightService.findDarkSpots(near: centre, radiusKm: StargazingConfig.searchRadiusKm,
-                                           cloudCover: { tonight.cloudCover(at: $0, time: time) })
+        spots = ReadingSpots.find(in: LightReadingsOverlay(readings: lightReadings), near: centre,
+                                  radiusKm: StargazingConfig.searchRadiusKm,
+                                  cloudCover: { tonight.cloudCover(at: $0, time: time) })
     }
 
     private func loadDrives() async {
@@ -160,7 +160,7 @@ struct StargazingSpotsView: View {
         }
     }
 
-    /// Fetches the heatmap's readings from Supabase the first time the layer is turned on.
+    /// Fetches the readings from Supabase. They drive both the heatmap and the spots.
     private func loadReadings() async {
         guard !isLoadingReadings else { return }
         isLoadingReadings = true
@@ -205,15 +205,10 @@ struct StargazingSpotsView: View {
                 ? "Location is off. Allow it in Settings to find spots near you."
                 : "Waiting for your location…"
         }
-        if showHeatmap {
-            if isLoadingReadings { return "Loading light readings…" }
-            if let readingsError { return readingsError }
-        }
+        if isLoadingReadings { return "Loading light readings…" }
+        if let readingsError { return readingsError }
         if isSearching && spots.isEmpty { return "Finding dark spots…" }
-        if spots.isEmpty && !lightService.missingTiles.isEmpty {
-            return "No light-pollution data here yet. Connect to the internet once to download it."
-        }
-        if spots.isEmpty { return "No dark land spots within \(Int(StargazingConfig.searchRadiusKm)) km." }
+        if spots.isEmpty { return "No light readings within \(Int(StargazingConfig.searchRadiusKm)) km yet." }
         if let error = tonight.lastError { return error }
         return nil
     }
