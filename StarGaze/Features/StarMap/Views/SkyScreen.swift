@@ -235,7 +235,9 @@ struct SkyScreen: View {
                      + (location.usingFallback ? " · sky over London, ON" : ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
+            .frame(alignment: .center)
             Button {
                 showHint = false
             } label: {
