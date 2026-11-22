@@ -7,6 +7,8 @@ struct SkyTopBar: View {
     /// Adds "· sky over London, ON" when there's no location fix.
     var usingFallbackLocation = false
     var checkingPhoto = false
+    /// A short note in the same spot as "Checking photo…" (e.g. demo-mode captures).
+    var notice: String?
     var onCloseInstruction: () -> Void = {}
 
     var body: some View {
@@ -18,11 +20,15 @@ struct SkyTopBar: View {
             if checkingPhoto {
                 checkingPill
                     .transition(.opacity)
+            } else if let notice {
+                noticePill(notice)
+                    .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity)
         .animation(.easeOut(duration: 0.25), value: showsInstruction)
         .animation(.easeOut(duration: 0.2), value: checkingPhoto)
+        .animation(.easeOut(duration: 0.2), value: notice)
     }
 
     private var instruction: some View {
@@ -51,6 +57,16 @@ struct SkyTopBar: View {
         .background(.ultraThinMaterial, in: Capsule())
     }
 
+    private func noticePill(_ text: String) -> some View {
+        Label(text, systemImage: "house")
+            .font(.footnote.weight(.medium))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .allowsHitTesting(false)
+    }
+
     private var checkingPill: some View {
         Label {
             Text("Checking photo…")
@@ -69,6 +85,14 @@ struct SkyTopBar: View {
     ZStack(alignment: .top) {
         Color.black.ignoresSafeArea()
         SkyTopBar(showsInstruction: true, checkingPhoto: true)
+            .padding()
+    }
+}
+
+#Preview("Demo mode notice") {
+    ZStack(alignment: .top) {
+        Color.black.ignoresSafeArea()
+        SkyTopBar(showsInstruction: true, notice: SkyScreen.demoNotice)
             .padding()
     }
 }

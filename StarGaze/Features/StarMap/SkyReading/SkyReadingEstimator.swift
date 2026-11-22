@@ -17,7 +17,6 @@ nonisolated enum SkyReadingEstimator {
         var device: SkyDeviceEvidence?
         var sky: SkyAstronomy
         var hasLocation: Bool
-        var demoMode = false
     }
 
     /// TODO(Part 5): compare against the catalog stars expected in frame instead of fixed count bands.
@@ -61,8 +60,7 @@ nonisolated enum SkyReadingEstimator {
             issues: issues,
             gemini: input.analysis,
             level: FindLevel(reliable: reliable, analysis: input.analysis),
-            cameraElevationDegrees: input.device?.cameraElevationDegrees,
-            demoMode: input.demoMode
+            cameraElevationDegrees: input.device?.cameraElevationDegrees
         )
     }
 

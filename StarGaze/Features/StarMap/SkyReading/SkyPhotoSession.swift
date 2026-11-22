@@ -110,7 +110,7 @@ final class SkyPhotoSession {
             context: photo.context, source: .camera, deviceModel: DeviceModel.identifier,
             exposureSeconds: photo.captured.exposureSeconds, iso: Double(photo.captured.iso),
             detection: detected, analysis: analysis, device: device, sky: sky,
-            hasLocation: photo.context.hasLocation, demoMode: photo.context.demoMode
+            hasLocation: photo.context.hasLocation
         ))
         #if DEBUG
         let stars = detected.map {

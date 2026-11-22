@@ -5,8 +5,8 @@
 
 import Foundation
 
-/// Profile → "Demo mode: allow indoor captures". Skips the point-up and not-a-sky checks so the
-/// app can be demoed indoors. Readings taken in demo mode never go to the light-pollution map.
+/// Profile → "Demo mode: allow indoor captures". For demos indoors: the ring fills at any angle and
+/// the capture button collects instantly, with no sky photo and no Gemini check (so no reading).
 nonisolated enum DemoMode {
     static let defaultsKey = "StarGaze.demoIndoorCaptures"
 

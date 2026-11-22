@@ -101,7 +101,7 @@ Swift · SwiftUI · ARKit · SceneKit · AVFoundation · CoreMotion · Accelerat
 - Go outside after dark: before the Sun is 12° below the horizon, readings are marked "Twilight" and don't count.
 
 ### Demoing indoors
-- **Profile → "Demo mode: allow indoor captures"** skips the point-up and "not a sky photo" checks, so you can collect constellations indoors. Readings taken in demo mode never go on the map.
+- **Profile → "Demo mode: allow indoor captures"** lets you collect constellations indoors: the ring fills at any angle, and the capture button collects instantly without a sky photo or Gemini check, so nothing is added to the light-pollution map.
 - In the simulator, which has no camera or compass, the Stars tab shows a virtual sky you can drag around, and finds are collected without a photo.
 
 ---

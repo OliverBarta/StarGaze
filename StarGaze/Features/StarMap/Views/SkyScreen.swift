@@ -30,6 +30,8 @@ struct SkyScreen: View {
     /// Constellations whose photo is still being checked; they can't be captured again meanwhile.
     @State private var checking: Set<String> = []
     @State private var aimedUp = true
+    /// Shown where "Checking photo…" goes (demo-mode captures).
+    @State private var notice: String?
     @AppStorage(DemoMode.defaultsKey) private var demoMode = false
 
     /// The ring is full and the phone points up at the sky (or demo mode), so capture is enabled.
@@ -89,7 +91,7 @@ struct SkyScreen: View {
 
             VStack {
                 SkyTopBar(showsInstruction: showHint, usingFallbackLocation: location.usingFallback,
-                          checkingPhoto: photo.isAnalyzing) {
+                          checkingPhoto: photo.isAnalyzing, notice: notice) {
                     showHint = false
                 }
                 Spacer()
@@ -166,32 +168,38 @@ struct SkyScreen: View {
         .padding(.top, 8)
     }
 
+    static let demoNotice = "Demo mode: indoors, so the sky wasn't scanned · collected instantly"
+
     /// The capture button was pressed on a ready constellation. With a camera, nothing is announced
     /// until the photo has been checked: the photo runs, "Checking photo…" shows, then `finish`
     /// collects it (or not). Without a camera (simulator, no permission) it's collected right away.
+    /// In demo mode there's no photo and no Gemini: it's collected right away with a short notice.
     private func collect(_ c: PlacedConstellation, camera: ARCameraSnapshot?) {
         guard !store.isDiscovered(c.name), !checking.contains(c.name) else { return }
-        let demo = demoMode
+        if demoMode {
+            showNotice(Self.demoNotice)
+            finish(nil, name: c.name)
+            return
+        }
         guard let camera, SkyPhotoSession.canShoot, !photo.isBusy else {
-            finish(nil, name: c.name, demo: demo)
+            finish(nil, name: c.name)
             return
         }
         checking.insert(c.name)
-        var context = SkyShotContext(constellationID: c.id, constellationName: c.name,
+        let context = SkyShotContext(constellationID: c.id, constellationName: c.name,
                                      latitude: location.latitude, longitude: location.longitude,
                                      hasLocation: !location.usingFallback, takenAt: .now, arCamera: camera)
-        context.demoMode = demo
         photo.shoot(context) { reading in
             checking.remove(c.name)
-            finish(reading, name: c.name, demo: demo)
+            finish(reading, name: c.name)
         }
     }
 
     /// Saves the reading, then collects the constellation (gold, haptic, set cutscene, toast) or
     /// explains why it wasn't collected.
-    private func finish(_ reading: SkyPhotoReading?, name: String, demo: Bool) {
+    private func finish(_ reading: SkyPhotoReading?, name: String) {
         if let reading { readings.add(reading) }
-        switch CaptureVerdict.decide(reading, name: name, demoMode: demo) {
+        switch CaptureVerdict.decide(reading, name: name) {
         case .reject(let text):
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
             showToast(text)
@@ -202,6 +210,15 @@ struct SkyScreen: View {
             if spotted && store.markSpotted(name) {
                 showToast("✦ Spotted \(name) · 2× points")
             }
+        }
+    }
+
+    /// Shows a note under the instruction for `SkyReadingTuning.toastDuration`.
+    private func showNotice(_ text: String) {
+        notice = text
+        Task {
+            try? await Task.sleep(for: SkyReadingTuning.toastDuration)
+            if notice == text { notice = nil }
         }
     }
 

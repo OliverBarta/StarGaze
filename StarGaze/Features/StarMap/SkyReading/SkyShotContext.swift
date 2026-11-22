@@ -10,7 +10,5 @@ nonisolated struct SkyShotContext: Sendable {
     /// False when the location is the fallback city, so the reading can't go on the map.
     let hasLocation: Bool
     let takenAt: Date
-    /// Profile → Demo mode was on: the reading never goes on the map.
-    var demoMode = false
     let arCamera: ARCameraSnapshot
 }

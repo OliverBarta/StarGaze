@@ -32,7 +32,8 @@ nonisolated struct SkyPhotoReading: Codable, Identifiable, Equatable, Sendable {
     var level: FindLevel
     /// Camera elevation at the shutter, from gravity (nil if motion wasn't recorded).
     var cameraElevationDegrees: Double?
-    /// Taken with Profile → Demo mode on (indoor demos): never goes on the map.
+    /// Set on readings saved by older builds that photographed in demo mode; they never go on the map.
+    /// (Demo mode no longer takes a photo, so new readings never set it.)
     var demoMode: Bool?
     var uploaded = false
 
