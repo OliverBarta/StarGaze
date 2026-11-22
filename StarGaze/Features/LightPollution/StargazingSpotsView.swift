@@ -48,8 +48,7 @@ struct StargazingSpotsView: View {
     @State private var hourIndex: Double = 0
 
     @State private var showClouds = true
-    @State private var showLightPollution = true
-    @State private var showHeatmap = false
+    @State private var showHeatmap = true
     @State private var lightReadings: [LightReading] = []
     @State private var isLoadingReadings = false
     @State private var readingsError: String?
@@ -73,21 +72,15 @@ struct StargazingSpotsView: View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 LightPollutionMapView(
-                    service: lightService,
-                    tileCount: lightService.tiles.count,
                     centre: location.coordinate,
                     isSavedLocation: location.isUsingSavedLocation,
                     radiusKm: StargazingConfig.searchRadiusKm,
                     spots: spots,
                     cloudField: tonight.cloudField(at: selectedTime),
                     showClouds: showClouds,
-                    showLightPollution: showLightPollution,
                     lightReadings: lightReadings,
                     showHeatmap: showHeatmap,
-                    selectedSpot: $selectedSpot,
-                    onRegionChange: { centre, visibleKm in
-                        Task { await lightService.loadTiles(around: centre, radiusKm: min(visibleKm, 300)) }
-                    }
+                    selectedSpot: $selectedSpot
                 )
                 .ignoresSafeArea()      // edge to edge, under the navigation bar
 
@@ -230,7 +223,8 @@ struct StargazingSpotsView: View {
     private var bottomPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             tonightSummary
-            if hours.count > 1 {
+            // the slider picks the cloud forecast hour, so it goes with the cloud layer
+            if showClouds && hours.count > 1 {
                 Slider(value: $hourIndex, in: 0...Double(hours.count - 1), step: 1) {
                     Text("Time")
                 } minimumValueLabel: {
@@ -238,9 +232,6 @@ struct StargazingSpotsView: View {
                 } maximumValueLabel: {
                     Text(hours.last!.formatted(date: .omitted, time: .shortened)).font(.caption2)
                 }
-            }
-            if showLightPollution {
-                legend
             }
             if showHeatmap {
                 heatmapLegend
@@ -271,26 +262,6 @@ struct StargazingSpotsView: View {
         .foregroundStyle(.secondary)
     }
 
-    private var legend: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                ForEach(Bortle.legend.indices, id: \.self) { i in
-                    let item = Bortle.legend[i]
-                    HStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Bortle.color(item.range.lowerBound))
-                            .frame(width: 12, height: 12)
-                        Text(item.title)
-                    }
-                }
-            }
-            .font(.caption2)
-//            Text("Light pollution: Falchi et al. 2016 (CC BY-NC) · Weather: Open-Meteo")
-//                .font(.system(size: 9))
-//                .foregroundStyle(.secondary)
-        }
-    }
-
     private var heatmapLegend: some View {
         HStack(spacing: 8) {
             Text("Readings: dark")
@@ -311,8 +282,7 @@ struct StargazingSpotsView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
             layerButton("Clouds", systemImage: "cloud.fill", isOn: $showClouds)
-            layerButton("Light pollution", systemImage: "lightbulb.fill", isOn: $showLightPollution)
-            layerButton("Light readings heatmap", systemImage: "flame.fill", isOn: $showHeatmap)
+            layerButton("Light pollution", systemImage: "lightbulb.fill", isOn: $showHeatmap)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {

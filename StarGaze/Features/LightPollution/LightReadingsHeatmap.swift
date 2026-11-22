@@ -122,7 +122,7 @@ nonisolated final class LightReadingsRenderer: MKOverlayRenderer {
               let image = Self.image(heatmap, mapRect: mapRect, zoomScale: zoomScale) else { return }
         let r = rect(for: mapRect)
         context.saveGState()
-        context.translateBy(x: r.minX, y: r.maxY)       // same y-flip as LightTileRenderer
+        context.translateBy(x: r.minX, y: r.maxY)       // same y-flip as CloudFieldRenderer
         context.scaleBy(x: 1, y: -1)
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: r.width, height: r.height))
