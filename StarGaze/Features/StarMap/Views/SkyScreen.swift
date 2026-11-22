@@ -172,44 +172,50 @@ struct SkyScreen: View {
 
     /// The capture button was pressed on a ready constellation. With a camera, nothing is announced
     /// until the photo has been checked: the photo runs, "Checking photo…" shows, then `finish`
-    /// collects it (or not). Without a camera (simulator, no permission) it's collected right away.
-    /// In demo mode there's no photo and no Gemini: it's collected right away with a short notice.
+    /// collects it (or not). Without a camera (simulator, no permission) it goes straight to `finish`.
+    /// In demo mode there's no photo and no Gemini: it goes straight to `finish` with a short notice.
     private func collect(_ c: PlacedConstellation, camera: ARCameraSnapshot?) {
         guard !store.isDiscovered(c.name), !checking.contains(c.name) else { return }
+        checking.insert(c.name)
         if demoMode {
             showNotice(Self.demoNotice)
-            finish(nil, name: c.name)
+            Task { await finish(nil, name: c.name) }
             return
         }
         guard let camera, SkyPhotoSession.canShoot, !photo.isBusy else {
-            finish(nil, name: c.name)
+            Task { await finish(nil, name: c.name) }
             return
         }
-        checking.insert(c.name)
         let context = SkyShotContext(constellationID: c.id, constellationName: c.name,
                                      latitude: location.latitude, longitude: location.longitude,
                                      hasLocation: !location.usingFallback, takenAt: .now, arCamera: camera)
         photo.shoot(context) { reading in
-            checking.remove(c.name)
-            finish(reading, name: c.name)
+            Task { await finish(reading, name: c.name) }
         }
     }
 
-    /// Saves the reading, then collects the constellation (gold, haptic, set cutscene, toast) or
-    /// explains why it wasn't collected.
-    private func finish(_ reading: SkyPhotoReading?, name: String) {
+    /// Saves the reading, then collects the constellation (saved to Supabase, then gold, haptic,
+    /// set cutscene, toast) or explains why it wasn't collected. The find stays in `checking` until
+    /// the save is done, so it can't be captured twice.
+    private func finish(_ reading: SkyPhotoReading?, name: String) async {
+        defer { checking.remove(name) }
         if let reading { readings.add(reading) }
         switch CaptureVerdict.decide(reading, name: name) {
         case .reject(let text):
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
             showToast(text)
         case .collect(let text, let spotted):
-            guard store.discover(name, place: location.placeName) else { return }
+            do {
+                guard try await store.discover(name, place: location.placeName,
+                                               level: spotted ? .spotted : .located) else { return }
+            } catch {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showToast("Not collected · Couldn't save \(name). Check your connection and try again.")
+                return
+            }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             showToast(text)
-            if spotted && store.markSpotted(name) {
-                showToast("✦ Spotted \(name) · 2× points")
-            }
+            if spotted { showToast("✦ Spotted \(name) · 2× points") }
         }
     }
 

@@ -22,6 +22,8 @@ struct SocialProfile: Codable, Hashable {
 
 enum SupabaseError: Error {
     case http(status: Int, code: String?, message: String?)
+    /// The user's profile hasn't been created yet, so rows can't be written for them.
+    case notSignedUp
 
     /// A Postgres unique-constraint or primary-key violation (PostgREST answers 409).
     var isConflict: Bool {
@@ -63,9 +65,11 @@ final class SupabaseService {
         let constellationName: String
         let locationName: String
         let capturedAt: Date
+        /// Nil for rows saved before the column existed (treated as located).
+        let level: FindLevel?
 
         enum CodingKeys: String, CodingKey {
-            case id
+            case id, level
             case constellationName = "constellation_name"
             case locationName = "location_name"
             case capturedAt = "captured_at"
@@ -162,22 +166,21 @@ final class SupabaseService {
 
     // MARK: Captures
 
-    /// Uploads discoveries. Ones already uploaded are skipped by the unique
-    /// (user, constellation, time) constraint, so it's safe to send everything again.
-    func uploadCaptures(_ discoveries: [DiscoveryStore.Discovery]) async throws {
-        guard profile != nil, !discoveries.isEmpty else { return }
-        let rows = discoveries.map {
-            ["constellation_name": $0.name, "location_name": $0.place, "captured_at": Self.formatDate($0.date)]
-        }
-        try await send(
-            "POST", "captures", query: ["on_conflict": "user_id,constellation_name,captured_at"],
-            body: rows, prefer: "resolution=ignore-duplicates,return=minimal")
+    /// Saves one find. Captures live only in Supabase, so this throws if it can't be saved
+    /// (no profile yet, offline…) and the caller doesn't collect the constellation.
+    func saveCapture(_ discovery: DiscoveryStore.Discovery) async throws {
+        guard profile != nil else { throw SupabaseError.notSignedUp }
+        let row = [
+            "constellation_name": discovery.name, "location_name": discovery.place,
+            "captured_at": Self.formatDate(discovery.date), "level": (discovery.level ?? .located).rawValue,
+        ]
+        try await send("POST", "captures", body: row, prefer: "return=minimal")
     }
 
     /// One user's captures (RLS allows the user's own and those of people they follow).
     func fetchCaptures(userID: String) async throws -> [CaptureRow] {
         try await request("GET", "captures", query: [
-            "select": "id,constellation_name,location_name,captured_at",
+            "select": "id,constellation_name,location_name,captured_at,level",
             "user_id": "eq.\(userID)",
         ])
     }

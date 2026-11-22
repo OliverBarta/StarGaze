@@ -69,8 +69,8 @@ create policy "Unfollow as myself"
 
 -- ── Captures (discoveries) ──────────────────────────────────────────────────
 -- Repeat scans of the same constellation are allowed; FriendStanding.ranked dedupes per week.
--- The app re-uploads all local discoveries on launch, so (user, constellation, time) is unique
--- and uploads use `on conflict do nothing`.
+-- This is the only copy of a user's finds (the app keeps none on the device); the Collection
+-- loads from here. `level` is 'spotted' (2× points) or 'located'; null on older rows means located.
 create table public.captures (
   id                 uuid primary key default gen_random_uuid(),
   user_id            text not null default public.requesting_user_id()
@@ -78,9 +78,14 @@ create table public.captures (
   constellation_name text not null,
   location_name      text not null default '',
   captured_at        timestamptz not null default now(),
+  level              text check (level in ('spotted', 'located')),
   created_at         timestamptz not null default now(),
   unique (user_id, constellation_name, captured_at)
 );
+
+-- For an existing database:
+--   alter table public.captures add column if not exists level text
+--     check (level in ('spotted', 'located'));
 
 create index captures_user_time_idx on public.captures (user_id, captured_at desc);
 

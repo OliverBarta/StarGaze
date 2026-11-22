@@ -37,8 +37,10 @@ struct SupabaseFriendsDataSource: FriendsDataSource {
     func fetchMyCaptures() async throws -> [FriendCapture] {
         guard let me = currentUser else { throw FollowError.notSignedUp }
         return try await service.fetchCaptures(userID: me.id).map { row in
-            FriendCapture(id: row.id, friend: me, constellationName: row.constellationName,
-                          locationName: row.locationName, date: row.capturedAt)
+            var capture = FriendCapture(id: row.id, friend: me, constellationName: row.constellationName,
+                                        locationName: row.locationName, date: row.capturedAt)
+            capture.isSpotted = row.level == .spotted
+            return capture
         }
     }
 

@@ -43,8 +43,8 @@ final class FriendsViewModel {
         return FriendStanding.ranked(from: captures + myCaptures, since: startDate, me: me)
     }
 
-    /// The user's captures: from Supabase when available, otherwise the local finds. Spotted comes
-    /// from the local finds either way (the server doesn't store levels).
+    /// The user's captures: from Supabase when available, otherwise the finds already loaded into
+    /// `DiscoveryStore` (which also come from Supabase). Spotted comes from either.
     static func myCaptures(remote: [FriendCapture]?, local: [DiscoveryStore.Discovery], me: Friend) -> [FriendCapture] {
         let spotted = Set(local.filter { $0.level == .spotted }.map { ConstellationName.normalizedKey(for: $0.name) })
         let base = remote ?? local.map {
@@ -53,7 +53,7 @@ final class FriendsViewModel {
         return base.map { capture in
             var mine = capture
             mine.friend = me
-            mine.isSpotted = spotted.contains(ConstellationName.normalizedKey(for: capture.constellationName))
+            mine.isSpotted = mine.isSpotted || spotted.contains(ConstellationName.normalizedKey(for: capture.constellationName))
             return mine
         }
     }

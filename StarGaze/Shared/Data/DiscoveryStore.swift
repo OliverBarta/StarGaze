@@ -1,7 +1,8 @@
 import SwiftUI
 import Observation
 
-/// Everything the user has discovered in the sky, plus completed sets. Saved on the device.
+/// Everything the user has discovered in the sky, plus completed sets. Nothing is saved on the
+/// device: finds are saved to Supabase (`saveCapture`) and loaded back with `refresh()`.
 @Observable
 final class DiscoveryStore {
     struct Discovery: Codable {
@@ -9,7 +10,7 @@ final class DiscoveryStore {
         var date: Date
         var place: String
         var stampSetIDs: [String] = []
-        /// Upgraded to Spotted by a good sky photo; nil (older saves) means located.
+        /// Spotted when a good sky photo backed the find; nil (older rows) means located.
         var level: FindLevel?
     }
 
@@ -36,28 +37,28 @@ final class DiscoveryStore {
     /// TESTING: make this constellation the "runner" in every test cutscene (nil = the one you found).
     static let testHero: String? = nil
 
-    /// Called after each new discovery is saved (ContentView uses it to share the find).
-    @ObservationIgnored var onDiscover: ((Discovery) -> Void)?
+    /// Saves a new find (ContentView sets it to the Supabase insert). Nil in previews: finds stay in memory.
+    @ObservationIgnored var saveCapture: ((Discovery) async throws -> Void)?
+    /// Loads the user's finds (ContentView sets it to the Supabase fetch).
+    @ObservationIgnored var fetchCaptures: (() async throws -> [Discovery])?
 
-    @ObservationIgnored private let saveKey = "StarGaze.discoveries.v1"
-    @ObservationIgnored private let setsKey = "StarGaze.completedSets.v1"
-
-    init() {
-        // While testing, start with a clean slate every launch so cutscenes can be replayed.
-        if Self.cutsceneOnEveryFind {
-            save()
-        } else {
-            load()
-        }
-    }
+    /// Finds whose save is still in flight, so they can't be discovered twice meanwhile.
+    @ObservationIgnored private var saving: Set<String> = []
 
     func isDiscovered(_ name: String) -> Bool { discoveries[name] != nil }
 
-    /// Record a discovery. Returns true if it's new.
+    /// Saves a discovery, and only records it once the save succeeds. Returns true if it's new;
+    /// throws if it couldn't be saved (then nothing changes).
     @discardableResult
-    func discover(_ name: String, place: String) -> Bool {
-        guard discoveries[name] == nil else { return false }
-        discoveries[name] = Discovery(name: name, date: .now, place: place)
+    func discover(_ name: String, place: String, level: FindLevel) async throws -> Bool {
+        guard discoveries[name] == nil, !saving.contains(name) else { return false }
+        let discovery = Discovery(name: name, date: .now, place: place, level: level)
+        saving.insert(name)
+        defer { saving.remove(name) }
+        try await saveCapture?(discovery)
+        guard discoveries[name] == nil else { return false }   // a refresh brought it in meanwhile
+
+        discoveries[name] = discovery
         let before = pendingCompletions.count
         checkSets()
         if Self.cutsceneOnEveryFind && pendingCompletions.count == before {
@@ -67,21 +68,32 @@ final class DiscoveryStore {
             let set = ConstellationSet.all.first { $0.members.contains("Auriga") } ?? ConstellationSet.all[0]
             pendingCompletions.insert(Completion(set: set, names: ["Auriga"], isTest: true), at: before)
         }
-        save()
-        if let discovery = discoveries[name] { onDiscover?(discovery) }
         return true
     }
 
-    /// Upgrades a find to Spotted (never downgrades). Returns true if it changed.
-    @discardableResult
-    func markSpotted(_ name: String) -> Bool {
-        guard let discovery = discoveries[name], discovery.level != .spotted else { return false }
-        discoveries[name]?.level = .spotted
-        save()
-        return true
+    /// Loads the user's finds from Supabase and adds them to what's here (captures are never
+    /// deleted, so merging can't bring back anything stale). Stamps and completed sets are
+    /// recomputed from the finds without playing cutscenes.
+    func refresh() async throws {
+        guard let fetchCaptures else { return }
+        let fetched = try await fetchCaptures()
+        var merged = discoveries
+        // The schema allows repeat captures of a constellation; the earliest one is the find.
+        for row in fetched.sorted(by: { $0.date < $1.date }) {
+            if var existing = merged[row.name] {
+                if row.level == .spotted { existing.level = .spotted }
+                merged[row.name] = existing
+            } else {
+                merged[row.name] = row
+            }
+        }
+        for name in merged.keys { merged[name]?.stampSetIDs = [] }
+        discoveries = merged
+        completedSetIDs = []
+        checkSets(queueCutscenes: false)
     }
 
-    private func checkSets() {
+    private func checkSets(queueCutscenes: Bool = true) {
         let sets = ConstellationSet.all
         for i in 0..<sets.count {
             let set = sets[i]
@@ -102,7 +114,7 @@ final class DiscoveryStore {
                 discoveries[name]?.stampSetIDs.append(set.id)
             }
             completedSetIDs.insert(set.id)
-            pendingCompletions.append(Completion(set: set, names: names))
+            if queueCutscenes { pendingCompletions.append(Completion(set: set, names: names)) }
         }
     }
 
@@ -156,22 +168,5 @@ final class DiscoveryStore {
                 stamps: stamps, stampIsFresh: freshStamps.contains(d.name), isSpotted: spotted))
         }
         return result
-    }
-
-    // MARK: Saving
-
-    private func save() {
-        if let data = try? JSONEncoder().encode(discoveries) {
-            UserDefaults.standard.set(data, forKey: saveKey)
-        }
-        UserDefaults.standard.set(Array(completedSetIDs), forKey: setsKey)
-    }
-
-    private func load() {
-        if let data = UserDefaults.standard.data(forKey: saveKey),
-           let saved = try? JSONDecoder().decode([String: Discovery].self, from: data) {
-            discoveries = saved
-        }
-        completedSetIDs = Set(UserDefaults.standard.stringArray(forKey: setsKey) ?? [])
     }
 }

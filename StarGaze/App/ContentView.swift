@@ -49,30 +49,52 @@ struct ContentView: View {
         .task {
             await startSharing()
         }
-        .onChange(of: selection) { old, _ in
+        .onChange(of: selection) { old, new in
             // stamps only slam in once
             if old == .collection { store.freshStamps = [] }
+            if new == .collection { Task { await refreshCollection() } }
         }
     }
 
-    /// Sets up the Supabase profile, uploads finds and light readings made offline or before
-    /// sign-in, then shares each new one as it happens. Failures are retried on the next launch.
+    /// Sets up the Supabase profile and loads the user's finds from it, uploads light readings made
+    /// offline or before sign-in, then shares each new one as it happens. Reading uploads that fail
+    /// are retried on the next launch; finds are only collected once Supabase has saved them.
     private func startSharing() async {
         readings.onAdd = { _ in
             Task { await uploadReadings() }
         }
         await uploadReadings()
-        store.onDiscover = { [supabase] discovery in
-            Task {
-                do { try await supabase.uploadCaptures([discovery]) } catch { print("Couldn't share \(discovery.name): \(error)") }
+        store.saveCapture = { [supabase, auth] discovery in
+            if supabase.profile == nil {
+                guard let user = auth.user else { throw SupabaseError.notSignedUp }
+                try await supabase.syncProfile(for: user)
+            }
+            try await supabase.saveCapture(discovery)
+        }
+        store.fetchCaptures = { [supabase] in
+            guard let me = supabase.profile else { throw SupabaseError.notSignedUp }
+            return try await supabase.fetchCaptures(userID: me.id).map {
+                DiscoveryStore.Discovery(name: $0.constellationName, date: $0.capturedAt,
+                                         place: $0.locationName, level: $0.level)
             }
         }
         guard let user = auth.user else { return }
         do {
             try await supabase.syncProfile(for: user)
-            try await supabase.uploadCaptures(Array(store.discoveries.values))
         } catch {
-            print("Supabase sync failed: \(error)")
+            print("Supabase profile sync failed: \(error)")
+            return
+        }
+        await refreshCollection()
+    }
+
+    /// Loads the user's finds from Supabase (on launch and whenever Collection opens).
+    private func refreshCollection() async {
+        do {
+            if supabase.profile == nil, let user = auth.user { try await supabase.syncProfile(for: user) }
+            try await store.refresh()
+        } catch {
+            print("Couldn't load the collection: \(error)")
         }
     }
 
