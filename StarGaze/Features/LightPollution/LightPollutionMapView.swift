@@ -4,7 +4,6 @@
 //
 //  MKMapView wrapped for SwiftUI. SwiftUI's own `Map` can't draw a custom image
 //  layer, so we use MapKit's UIKit map here. It shows:
-//    - the light-pollution overlay (one image per loaded 5° tile)
 //    - the cloud layer for the selected hour (one smooth, soft-edged white image)
 //    - the heatmap of `light_readings` from Supabase (see LightReadingsHeatmap.swift)
 //    - the search circle and the top spots (numbered pins)
@@ -18,41 +17,6 @@ import MapKit
 // MARK: - Overlays and annotations
 // These are `nonisolated` with immutable properties because MapKit reads
 // overlays and draws renderers on background threads.
-
-nonisolated final class LightTileOverlay: NSObject, MKOverlay, @unchecked Sendable {
-    let key: TileKey
-    let image: CGImage
-    let coordinate: CLLocationCoordinate2D
-    let boundingMapRect: MKMapRect
-
-    init(key: TileKey, image: CGImage) {
-        self.key = key
-        self.image = image
-        let d = Double(TileKey.degrees)
-        let south = max(-85.05, Double(key.lat0)), north = min(85.05, Double(key.lat0) + d)
-        let west = Double(key.lon0), east = west + d
-        coordinate = CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2)
-        let nw = MKMapPoint(CLLocationCoordinate2D(latitude: north, longitude: west))
-        let se = MKMapPoint(CLLocationCoordinate2D(latitude: south, longitude: east))
-        boundingMapRect = MKMapRect(x: nw.x, y: nw.y, width: se.x - nw.x, height: se.y - nw.y)
-        super.init()
-    }
-}
-
-/// Draws a tile's pre-rendered colour image stretched over its 5° square.
-nonisolated final class LightTileRenderer: MKOverlayRenderer {
-    override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
-        guard let tile = overlay as? LightTileOverlay else { return }
-        let r = rect(for: tile.boundingMapRect)
-        context.saveGState()
-        // MapKit's y axis points down, Core Graphics images draw y-up: flip.
-        context.translateBy(x: r.minX, y: r.maxY)
-        context.scaleBy(x: 1, y: -1)
-        context.interpolationQuality = .medium     // smooth the 1.4 km cells a little
-        context.draw(tile.image, in: CGRect(x: 0, y: 0, width: r.width, height: r.height))
-        context.restoreGState()
-    }
-}
 
 /// The cloud layer: the forecast grid for one hour, upscaled into a smooth image.
 nonisolated final class CloudFieldOverlay: NSObject, MKOverlay, @unchecked Sendable {
@@ -80,7 +44,8 @@ nonisolated final class CloudFieldRenderer: MKOverlayRenderer {
         guard let clouds = overlay as? CloudFieldOverlay else { return }
         let r = rect(for: clouds.boundingMapRect)
         context.saveGState()
-        context.translateBy(x: r.minX, y: r.maxY)      // same y-flip as LightTileRenderer
+        // MapKit's y axis points down, Core Graphics images draw y-up: flip.
+        context.translateBy(x: r.minX, y: r.maxY)
         context.scaleBy(x: 1, y: -1)
         context.interpolationQuality = .high
         context.draw(clouds.image, in: CGRect(x: 0, y: 0, width: r.width, height: r.height))
@@ -191,9 +156,6 @@ nonisolated final class SavedLocationAnnotation: NSObject, MKAnnotation, @unchec
 // MARK: - Map view
 
 struct LightPollutionMapView: UIViewRepresentable {
-    let service: LightPollutionService
-    /// Pass `service.tiles.count` so SwiftUI updates the map when tiles finish loading.
-    let tileCount: Int
     let centre: CLLocationCoordinate2D?
     /// True while `centre` is the saved location from a previous launch, not live GPS.
     let isSavedLocation: Bool
@@ -201,12 +163,9 @@ struct LightPollutionMapView: UIViewRepresentable {
     let spots: [StargazingSpot]
     let cloudField: CloudField?
     let showClouds: Bool
-    let showLightPollution: Bool
     var lightReadings: [LightReading] = []
     var showHeatmap = false
     @Binding var selectedSpot: StargazingSpot?
-    /// Called when the user pans/zooms: (visible centre, approx. visible radius in km).
-    var onRegionChange: (CLLocationCoordinate2D, Double) -> Void = { _, _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -233,7 +192,6 @@ struct LightPollutionMapView: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: LightPollutionMapView
 
-        private var tileOverlays: [TileKey: LightTileOverlay] = [:]
         private var cloudOverlay: CloudFieldOverlay?
         private var shownCloudField: CloudField?
         private var heatmapOverlay: LightReadingsOverlay?
@@ -246,26 +204,11 @@ struct LightPollutionMapView: UIViewRepresentable {
         init(parent: LightPollutionMapView) { self.parent = parent }
 
         func sync(_ map: MKMapView) {
-            syncTiles(map)
             syncClouds(map)
             syncHeatmap(map)
             syncCircle(map)
             syncAnnotations(map)
             syncSelection(map)
-        }
-
-        private func syncTiles(_ map: MKMapView) {
-            guard parent.showLightPollution else {
-                map.removeOverlays(Array(tileOverlays.values))
-                tileOverlays.removeAll()
-                return
-            }
-            for key in parent.service.tiles.keys where tileOverlays[key] == nil {
-                guard let image = parent.service.overlayImage(for: key) else { continue }  // ocean
-                let overlay = LightTileOverlay(key: key, image: image)
-                tileOverlays[key] = overlay
-                map.addOverlay(overlay, level: .aboveRoads)
-            }
         }
 
         private func syncClouds(_ map: MKMapView) {
@@ -351,11 +294,6 @@ struct LightPollutionMapView: UIViewRepresentable {
         // MARK: MKMapViewDelegate
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let tile = overlay as? LightTileOverlay {
-                let renderer = LightTileRenderer(overlay: tile)
-                renderer.alpha = 0.6
-                return renderer
-            }
             if let circle = overlay as? MKCircle {
                 let renderer = MKCircleRenderer(circle: circle)
                 renderer.strokeColor = UIColor.white.withAlphaComponent(0.8)
@@ -408,12 +346,6 @@ struct LightPollutionMapView: UIViewRepresentable {
             guard !isSyncingSelection, annotation is SpotAnnotation else { return }
             lastSelectedID = nil
             parent.selectedSpot = nil
-        }
-
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            let region = mapView.region
-            let radiusKm = region.span.latitudeDelta * 111.32 / 2
-            parent.onRegionChange(region.center, radiusKm)
         }
     }
 }

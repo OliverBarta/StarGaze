@@ -9,6 +9,10 @@ struct ProfileView: View {
     @Environment(AuthService.self) private var auth
     @Environment(SupabaseService.self) private var supabase: SupabaseService?
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(DemoMode.defaultsKey) private var demoMode = false
+    #if DEBUG
+    @AppStorage(DebugPhotoSaver.defaultsKey) private var savesSkyPhotos = false
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -41,6 +45,14 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+
+                Toggle("Demo mode: allow indoor captures", isOn: $demoMode)
+                    .font(.subheadline)
+
+                #if DEBUG
+                Toggle("Save sky photos to Photos (debug)", isOn: $savesSkyPhotos)
+                    .font(.subheadline)
+                #endif
 
                 Button(role: .destructive) {
                     Task { await auth.logout() }

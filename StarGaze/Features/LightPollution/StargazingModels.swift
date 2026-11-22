@@ -4,7 +4,7 @@
 //
 //  Small shared pieces used by the views:
 //    - SpotsLocationProvider: GPS, starting from the last saved location
-//    - Bortle colours for SwiftUI (legend, badges)
+//    - Bortle colours for SwiftUI (spot pins, badges)
 //    - Driving: driving distance/time (online) + "open in Apple Maps"
 //
 //  Requires in the app target's Info tab:
@@ -138,19 +138,11 @@ final class SpotsLocationProvider {
 // MARK: - Bortle colours for SwiftUI
 
 extension Bortle {
-    /// Same colours as the map overlay (see Bortle.rgb in LightPollutionService.swift).
+    /// See Bortle.rgb in LightPollutionService.swift.
     static func color(_ bortle: Int) -> Color {
         let c = rgb(bortle)
         return Color(red: Double(c.r) / 255, green: Double(c.g) / 255, blue: Double(c.b) / 255)
     }
-
-    /// Short legend text, e.g. "1–2 Dark sky".
-    static let legend: [(range: ClosedRange<Int>, title: String)] = [
-        (1...2, "Dark sky"),
-        (3...4, "Rural"),
-        (5...6, "Suburban"),
-        (7...9, "City"),
-    ]
 }
 
 // MARK: - Driving distance + Apple Maps

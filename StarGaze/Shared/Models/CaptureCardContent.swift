@@ -17,4 +17,6 @@ struct CaptureCardContent {
     var stamps: [ConstellationSet] = []
     /// True right after a set cutscene, so the stamp slams in.
     var stampIsFresh: Bool = false
+    /// Confirmed by a good sky photo: gold badge, and `points` already doubled.
+    var isSpotted: Bool = false
 }

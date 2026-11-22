@@ -15,6 +15,7 @@ struct ContentView: View {
     @Environment(AuthService.self) private var auth
     @Environment(SupabaseService.self) private var supabase
     @State private var store = DiscoveryStore()
+    @State private var readings = SkyReadingStore()
     @State private var selection: AppTab = .stars
 
     var body: some View {
@@ -35,7 +36,7 @@ struct ContentView: View {
             }
 
             // Set-complete cutscene plays over everything, then jumps to the collection.
-            if let completion = store.pendingCompletions.first {
+            if let completion = store.cutsceneToPlay {
                 cutscene(for: completion)
                     .id(completion.id)
                 .transition(.opacity)
@@ -43,6 +44,7 @@ struct ContentView: View {
             }
         }
         .environment(store)
+        .environment(readings)
         .task {
             await startSharing()
         }
@@ -52,9 +54,13 @@ struct ContentView: View {
         }
     }
 
-    /// Sets up the Supabase profile, uploads finds made offline or before sign-in,
-    /// then shares each new find as it happens. Failures are retried on the next launch.
+    /// Sets up the Supabase profile, uploads finds and light readings made offline or before
+    /// sign-in, then shares each new one as it happens. Failures are retried on the next launch.
     private func startSharing() async {
+        readings.onAdd = { _ in
+            Task { await uploadReadings() }
+        }
+        await uploadReadings()
         store.onDiscover = { [supabase] discovery in
             Task {
                 do { try await supabase.uploadCaptures([discovery]) } catch { print("Couldn't share \(discovery.name): \(error)") }
@@ -66,6 +72,14 @@ struct ContentView: View {
             try await supabase.uploadCaptures(Array(store.discoveries.values))
         } catch {
             print("Supabase sync failed: \(error)")
+        }
+    }
+
+    /// Inserts reliable sky readings into `light_readings` so they show on the map.
+    private func uploadReadings() async {
+        await readings.uploadPending { [supabase] reading in
+            try await supabase.insertLightReading(latitude: reading.latitude, longitude: reading.longitude,
+                                                  strength: reading.strength)
         }
     }
 

@@ -22,8 +22,16 @@ struct SkySceneView: UIViewRepresentable {
     let onTarget: (SkyTarget?) -> Void
     /// Bump to capture the constellation whose ring is full (the capture button).
     var captureCount = 0
-    /// Fired when a ready constellation is captured.
-    let onDiscover: (PlacedConstellation) -> Void
+    /// Pauses the ARSession (camera released) while the sky photo is taken; false resumes it.
+    var arPaused = false
+    /// Fired when the capture button is pressed on a ready constellation, with where ARKit's camera
+    /// was pointing (nil without AR). Nothing turns gold here: that happens when the constellation
+    /// appears in `discovered` (after the photo check), with a celebration ring.
+    let onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void
+    /// Whether the camera is aimed above `SkyReadingTuning.minCaptureElevationDegrees` (reported on change).
+    var onAimedUp: (Bool) -> Void = { _ in }
+    /// Fades the targeted constellation's 3D name label (while the photo card is on screen).
+    var quietTargetLabel = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(useAR: useAR, onTap: onTap)
@@ -40,6 +48,7 @@ struct SkySceneView: UIViewRepresentable {
             let config = ARWorldTrackingConfiguration()
             config.worldAlignment = .gravityAndHeading  // -z = true north, +y = up
             ar.session.run(config)
+            c.arConfiguration = config
             view = ar
         } else {
             view = SCNView()
@@ -68,9 +77,12 @@ struct SkySceneView: UIViewRepresentable {
         c.onTap = onTap
         c.onTarget = onTarget
         c.onDiscover = onDiscover
-        c.discovered = discovered
+        c.onAimedUp = onAimedUp
+        c.quietTargetLabel = quietTargetLabel
+        c.syncDiscovered(discovered)
         c.rebuild(constellations, stars: stars, namedStars: namedStars, version: version)
         c.refreshDiscoveredColors()
+        c.setARPaused(arPaused)
         if captureCount != c.lastCaptureCount {
             c.lastCaptureCount = captureCount
             // after this update pass, since capturing changes SwiftUI state
@@ -99,8 +111,14 @@ struct SkySceneView: UIViewRepresentable {
         let useAR: Bool
         var onTap: (PlacedConstellation) -> Void
         var onTarget: (SkyTarget?) -> Void = { _ in }
-        var onDiscover: (PlacedConstellation) -> Void = { _ in }
-        var discovered: Set<String> = []
+        var onDiscover: (PlacedConstellation, ARCameraSnapshot?) -> Void = { _, _ in }
+        var onAimedUp: (Bool) -> Void = { _ in }
+        var quietTargetLabel = false
+        private var aimedUp: Bool?
+        var arConfiguration: ARWorldTrackingConfiguration?
+        private var arIsPaused = false
+        private(set) var discovered: Set<String> = []
+        private var hasSyncedDiscovered = false
         var lastCaptureCount = 0
         weak var view: SCNView?
 
@@ -274,6 +292,23 @@ struct SkySceneView: UIViewRepresentable {
             tracker.update(candidates: candidates, dt: dt)
 
             report(currentTarget())
+            reportAim(forward)
+        }
+
+        /// World +y is up in both AR and the virtual sky, so elevation = asin(forward.y).
+        private func reportAim(_ forward: SIMD3<Float>) {
+            let elevation = Double(asin(max(-1, min(1, forward.y)))) * 180 / .pi
+            let threshold = SkyReadingTuning.minCaptureElevationDegrees
+            let margin = SkyReadingTuning.captureElevationHysteresisDegrees
+            let up: Bool
+            switch aimedUp {
+            case true?: up = elevation >= threshold - margin
+            case false?: up = elevation >= threshold + margin
+            case nil: up = elevation >= threshold
+            }
+            guard up != aimedUp else { return }
+            aimedUp = up
+            onAimedUp(up)
         }
 
         /// Captures the targeted constellation if it's undiscovered and its ring is full.
@@ -281,12 +316,28 @@ struct SkySceneView: UIViewRepresentable {
             guard let id = tracker.currentID, tracker.progressID == id, tracker.progress >= 1,
                   let target = drawn.first(where: { $0.placed.id == id }),
                   !discovered.contains(target.placed.name) else { return }
-            discovered.insert(target.placed.name)
-            refreshDiscoveredColors()
-            celebrate(at: target.center)
             tracker.clearProgress()
             report(nil)
-            onDiscover(target.placed)
+            onDiscover(target.placed, arCameraSnapshot())
+        }
+
+        /// The AR camera's pose and intrinsics right now, or nil without AR.
+        private func arCameraSnapshot() -> ARCameraSnapshot? {
+            guard let camera = (view as? ARSCNView)?.session.currentFrame?.camera else { return nil }
+            return ARCameraSnapshot(transform: camera.transform, intrinsics: camera.intrinsics,
+                                    imageResolution: camera.imageResolution)
+        }
+
+        /// Hands the camera to the sky photo and back. Resuming reuses the same configuration
+        /// without resetting tracking, so the sky stays where it was.
+        func setARPaused(_ paused: Bool) {
+            guard paused != arIsPaused, let ar = view as? ARSCNView, let arConfiguration else { return }
+            arIsPaused = paused
+            if paused {
+                ar.session.pause()
+            } else {
+                ar.session.run(arConfiguration)
+            }
         }
 
         /// The ring's content: the targeted constellation, or the one whose progress is still draining.
@@ -313,6 +364,19 @@ struct SkySceneView: UIViewRepresentable {
             guard target != lastReported else { return }
             lastReported = target
             onTarget(target)
+        }
+
+        /// Takes the collection from SwiftUI; newly added constellations get the celebration ring
+        /// (not on the first sync, which is just the saved collection).
+        func syncDiscovered(_ names: Set<String>) {
+            let added = names.subtracting(discovered)
+            discovered = names
+            if hasSyncedDiscovered {
+                for name in added {
+                    if let d = drawn.first(where: { $0.placed.name == name }) { celebrate(at: d.center) }
+                }
+            }
+            hasSyncedDiscovered = true
         }
 
         /// Expanding golden ring where a constellation was just discovered.
@@ -345,7 +409,7 @@ struct SkySceneView: UIViewRepresentable {
                 let d = drawn[i]
                 let goal: (lines: CGFloat, stars: CGFloat, label: CGFloat, art: CGFloat)
                 if d.placed.id == targetID {
-                    goal = (1, 1, 1, 0.55)
+                    goal = (1, 1, quietTargetLabel ? 0 : 1, 0.55)
                 } else {
                     // ambient fade: 1 when dead centre, 0 when ~35° or more away
                     let angle = ConstellationTargeting.angle(forward, d.center)

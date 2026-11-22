@@ -10,10 +10,15 @@ final class GeminiService {
 
     /// Checks whether a photo is a usable night-sky measurement. Gemini must answer with JSON
     /// matching `SkyAnalysis`, enforced by a response schema and validated again here.
-    func analyzeSky(_ image: UIImage) async throws -> SkyAnalysis {
+    /// `context` (live photos only) tells Gemini what the phone was aimed at.
+    func analyzeSky(_ image: UIImage, context: SkyAnalysisContext? = nil,
+                    timeout: TimeInterval = 60) async throws -> SkyAnalysis {
         let jpeg = try await Self.uploadJPEG(for: image)
+        let contextText = context?.promptText
+            ?? "No context: this photo came from the library. Set targetPatternVisible to false."
         let parts: [[String: Any]] = [
             ["text": Self.skyPrompt],
+            ["text": contextText],
             ["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]],
         ]
         let config: [String: Any] = [
@@ -21,7 +26,7 @@ final class GeminiService {
             "responseSchema": Self.skySchema,
             "temperature": 0,
         ]
-        guard let text = try await generate(parts: parts, generationConfig: config),
+        guard let text = try await generate(parts: parts, generationConfig: config, timeout: timeout),
               let data = text.data(using: .utf8) else {
             throw GeminiError.badResponse
         }
@@ -38,10 +43,12 @@ final class GeminiService {
     }
 
     /// Sends one request and returns the first candidate's text (nil if Gemini returned none).
-    private func generate(parts: [[String: Any]], generationConfig: [String: Any]) async throws -> String? {
+    private func generate(parts: [[String: Any]], generationConfig: [String: Any],
+                          timeout: TimeInterval) async throws -> String? {
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Secrets.geminiAPIKey, forHTTPHeaderField: "x-goog-api-key")
 
@@ -74,19 +81,45 @@ final class GeminiService {
 
     private static let skyPrompt = """
     You are the data-quality checker for a citizen-science app that measures light pollution. \
-    The photo was taken with a phone pointed at the sky, often at night and often noisy or dark. \
-    Do not identify constellations. Judge only whether this is a usable measurement of the night sky.
+    The photo was taken with a phone held up to the night sky: a short handheld exposure, often dark, \
+    grainy and orange from city light. Do not identify constellations from scratch. Your main job is to \
+    say whether something other than light pollution explains how few stars are visible.
 
-    - isNightSky: true only if the photo shows the sky at night (not daytime, twilight with a bright \
-    sky, indoors, or a photo of a screen).
-    - cloudCover: "none", "partial" or "overcast" for the visible sky.
-    - obstructions: anything blocking or washing out the sky: "trees", "buildings", "streetlight", \
-    "moon_glare", "other". Use an empty list if there are none.
+    A clear but bright city sky with few or no visible stars is a VALID light-pollution reading. \
+    Only flag the photo if clouds, lights in frame, haze, blur, or a non-sky subject explain the missing stars. \
+    Most photos come from cities, so a featureless orange or grey-blue clear sky is normal and fine.
+
+    Judge only what the photo shows. Don't flag a photo because it looks processed, smooth, edited \
+    or artificial: grainy or flat-looking sky is normal for these phones.
+
+    - isNightSky: false only if the photo mostly shows the ground, a room, a ceiling, a wall, a screen, \
+    or daytime or twilight sky, or if it is almost entirely black with no sky glow, gradient or stars at all \
+    (lens covered). A uniform orange, brown or grey glow with few or no stars is a light-polluted night \
+    sky, not a wall or ceiling. Buildings, roofs, trees or wires at the edges are obstructions, not a reason \
+    for false. A dark but visibly sky-like frame is still a night sky.
+    - cloudCover: "none", "partial" or "overcast" for the visible sky. Clouds show as mottled, billowy or \
+    patchy brightness: lighter lumps and darker gaps with soft edges, often lit orange from below. Use \
+    "overcast" when that texture covers almost all of the sky, "partial" when it covers some of it. \
+    A smooth glow that only brightens toward the horizon, without lumps, is not cloud.
+    - obstructions: everything that applies, or an empty list:
+      "trees", "buildings": blocking part of the sky.
+      "streetlight": a streetlight, lamp, floodlight, window or other bright artificial light source \
+    inside the frame.
+      "moon_glare": the Moon in the frame or its glare washing out part of the sky.
+      "haze": fog, mist, haze or smoke. Cues: halos or large soft glowing patches around lights, a milky \
+    veil over the scene, trees or buildings fading or going soft into the mist, low contrast everywhere.
+      "blur": stars drawn as lines, streaks, arcs or circles instead of points. Star trails count as blur \
+    even when they look intentional. Also heavy shake or out-of-focus.
+      "lens": smudged or fogged lens, or a finger or object partly covering it.
+      "other": anything else blocking the sky.
     - estimatedVisibleStars: how many individual stars you can make out (0 if none). Don't count \
-    noise, planes or lights on the ground.
+    noise, grain, planes, satellites or lights on the ground.
     - skyBrightness: 1 to 9 like the Bortle scale. 1 = pristine dark sky with many stars, \
-    9 = bright inner-city sky with almost none.
-    - confidence: "low", "medium" or "high".
+    9 = bright inner-city sky with almost none. This is only a rough second opinion.
+    - confidence: "low", "medium" or "high" about this quality judgement.
+    - targetPatternVisible: true only if the stick-figure pattern of the named target constellation \
+    (its brightest stars in their recognisable arrangement) can actually be seen in the photo. \
+    False if only a few unrelated stars are visible, or if there is no target.
     - reason: one short sentence explaining the judgement.
     """
 
@@ -102,15 +135,16 @@ final class GeminiService {
             "estimatedVisibleStars": ["type": "INTEGER", "minimum": 0],
             "skyBrightness": ["type": "INTEGER", "minimum": 1, "maximum": 9],
             "confidence": ["type": "STRING", "enum": SkyConfidence.allCases.map(\.rawValue)],
+            "targetPatternVisible": ["type": "BOOLEAN"],
             "reason": ["type": "STRING"],
         ],
         "required": [
             "isNightSky", "cloudCover", "obstructions", "estimatedVisibleStars",
-            "skyBrightness", "confidence", "reason",
+            "skyBrightness", "confidence", "targetPatternVisible", "reason",
         ],
         "propertyOrdering": [
             "isNightSky", "cloudCover", "obstructions", "estimatedVisibleStars",
-            "skyBrightness", "confidence", "reason",
+            "skyBrightness", "confidence", "targetPatternVisible", "reason",
         ],
     ]
 }

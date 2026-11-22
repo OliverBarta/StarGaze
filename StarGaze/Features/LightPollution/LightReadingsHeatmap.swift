@@ -105,6 +105,82 @@ nonisolated final class LightReadingsOverlay: NSObject, MKOverlay, @unchecked Se
     }
 }
 
+// MARK: - Dark spots
+
+/// Picks stargazing spots from the heatmap. Strength maps linearly onto the SQM scale the
+/// rest of the feature uses (0 -> SQM 22, pristine; 1 -> SQM 18, city), so Tonight's score,
+/// the Bortle badges and the pin colours work unchanged.
+nonisolated enum ReadingSpots {
+    static let darkestSQM = 22.0
+    static let brightestSQM = 18.0
+    /// Skip places the readings barely cover (the heatmap's faded edge, one far-off reading).
+    static let minCoverage = 0.25
+    /// Spacing of the candidate points sampled across the search circle.
+    static let stepKm = 1.0
+
+    static func sqm(strength: Double) -> Double {
+        darkestSQM - (darkestSQM - brightestSQM) * min(1, max(0, strength))
+    }
+
+    /// Best points within `radiusKm`, spread at least `minSeparationKm` apart, ranked by
+    /// darkness x cloud (the same factors as Tonight's score). `cloudCover` gives the cloud %
+    /// at a coordinate, or nil when there's no forecast (then only darkness counts).
+    /// Points within `similarStrength` of each other are ranked nearest-first,
+    /// so we don't send people far away for a tiny gain.
+    static func find(in heatmap: LightReadingsOverlay,
+                     near centre: CLLocationCoordinate2D,
+                     radiusKm: Double,
+                     count: Int = 3,
+                     minSeparationKm: Double = 10,
+                     similarStrength: Double = 0.025,
+                     cloudCover: (CLLocationCoordinate2D) -> Double? = { _ in nil }) -> [StargazingSpot] {
+        let latStep = stepKm / 111.32
+        let lonStep = stepKm / (111.32 * max(0.01, cos(centre.latitude * .pi / 180)))
+        let steps = Int((radiusKm / stepKm).rounded(.up))
+
+        struct Candidate { let strength: Double; let quality: Double; let lat: Double; let lon: Double; let km: Double }
+        var candidates: [Candidate] = []
+
+        for i in -steps...steps {
+            let lat = centre.latitude + Double(i) * latStep
+            for j in -steps...steps {
+                let lon = centre.longitude + Double(j) * lonStep
+                let km = LightPollutionService.distanceKm(centre.latitude, centre.longitude, lat, lon)
+                guard km <= radiusKm,
+                      let sample = heatmap.sample(lat: lat, lon: lon),
+                      sample.coverage >= minCoverage else { continue }
+                let cloud = cloudCover(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                let quality = TonightScoring.darknessFactor(sqm: sqm(strength: sample.strength))
+                    * TonightScoring.cloudFactor(cloud)
+                candidates.append(Candidate(strength: sample.strength, quality: quality, lat: lat, lon: lon, km: km))
+            }
+        }
+
+        // best darkness x cloud first, then darkest, then nearest, compared in buckets of
+        // `similarStrength` (darknessFactor is 1 - strength, so both use the same bucket);
+        // darkness alone breaks ties when the quality is 0 (e.g. 100% cloud everywhere)
+        candidates.sort {
+            let qa = Int($0.quality / similarStrength), qb = Int($1.quality / similarStrength)
+            if qa != qb { return qa > qb }
+            let a = Int($0.strength / similarStrength), b = Int($1.strength / similarStrength)
+            return a != b ? a < b : $0.km < $1.km
+        }
+
+        // greedy pick: skip anything too close to a spot we already chose
+        var picked: [StargazingSpot] = []
+        for c in candidates {
+            if picked.contains(where: {
+                LightPollutionService.distanceKm($0.latitude, $0.longitude, c.lat, c.lon) < minSeparationKm
+            }) { continue }
+            let sqm = sqm(strength: c.strength)
+            picked.append(StargazingSpot(latitude: c.lat, longitude: c.lon, sqm: sqm,
+                                         bortle: Bortle.fromSQM(sqm), straightLineKm: c.km))
+            if picked.count == count { break }
+        }
+        return picked
+    }
+}
+
 nonisolated final class LightReadingsRenderer: MKOverlayRenderer {
     /// Opacity where the heatmap is fully covered.
     static let maxAlpha = 0.75
@@ -122,7 +198,7 @@ nonisolated final class LightReadingsRenderer: MKOverlayRenderer {
               let image = Self.image(heatmap, mapRect: mapRect, zoomScale: zoomScale) else { return }
         let r = rect(for: mapRect)
         context.saveGState()
-        context.translateBy(x: r.minX, y: r.maxY)       // same y-flip as LightTileRenderer
+        context.translateBy(x: r.minX, y: r.maxY)       // same y-flip as CloudFieldRenderer
         context.scaleBy(x: 1, y: -1)
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: r.width, height: r.height))

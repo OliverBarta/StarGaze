@@ -49,7 +49,7 @@ nonisolated enum Bortle {
         }
     }
 
-    /// Overlay / legend colours: dark blue (dark sky) -> yellow -> red (city).
+    /// Spot colours: dark blue (dark sky) -> yellow -> red (city).
     static func rgb(_ bortle: Int) -> (r: UInt8, g: UInt8, b: UInt8) {
         switch bortle {
         case 1: (8, 16, 60)
@@ -167,7 +167,6 @@ final class LightPollutionService {
 
     @ObservationIgnored private var index: Set<String>?
     @ObservationIgnored private var lastIndexAttempt: Date?
-    @ObservationIgnored private var imageCache: [TileKey: CGImage] = [:]
     private let session: URLSession
 
     init(remoteBaseURL: URL? = nil) {
@@ -357,38 +356,6 @@ final class LightPollutionService {
             if picked.count == count { break }
         }
         return picked
-    }
-
-    // MARK: Overlay images
-
-    /// Colour image for one tile (water transparent), cached. nil for ocean tiles.
-    func overlayImage(for key: TileKey) -> CGImage? {
-        if let cached = imageCache[key] { return cached }
-        guard let tile = tiles[key], !tile.isOcean else { return nil }
-
-        // byte -> RGBA lookup table
-        var lut = [UInt8](repeating: 0, count: 256 * 4)
-        for v in 1...255 {
-            let (r, g, b) = Bortle.rgb(Bortle.fromSQM(LightTile.sqm(fromByte: UInt8(v))!))
-            lut[v * 4] = r; lut[v * 4 + 1] = g; lut[v * 4 + 2] = b; lut[v * 4 + 3] = 255
-        }
-
-        let n = LightTile.cells
-        var pixels = [UInt8](repeating: 0, count: n * n * 4)
-        for i in 0..<(n * n) {
-            let v = Int(tile.values[i]) * 4
-            pixels[i * 4] = lut[v]; pixels[i * 4 + 1] = lut[v + 1]
-            pixels[i * 4 + 2] = lut[v + 2]; pixels[i * 4 + 3] = lut[v + 3]
-        }
-
-        guard let provider = CGDataProvider(data: Data(pixels) as CFData),
-              let image = CGImage(width: n, height: n, bitsPerComponent: 8, bitsPerPixel: 32,
-                                  bytesPerRow: n * 4, space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-                                  provider: provider, decode: nil, shouldInterpolate: false,
-                                  intent: .defaultIntent) else { return nil }
-        imageCache[key] = image
-        return image
     }
 
     // MARK: Geometry helpers
