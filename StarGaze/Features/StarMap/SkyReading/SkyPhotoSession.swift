@@ -64,15 +64,35 @@ final class SkyPhotoSession {
         phase = .idle
     }
 
-    /// Parts 2–4 (star detection, Gemini, the estimate) plug in here. For now the photo is only
-    /// inspected in DEBUG builds, then dropped; nothing is persisted.
+    /// Star detection runs here; Gemini and the estimate (Parts 3–4) plug in next. Nothing is
+    /// persisted yet: the photo is dropped when this returns.
     private func analyze(_ photo: SkyPhoto) async {
+        let detected = await Self.detectStars(in: photo)
         #if DEBUG
-        showDebugSummary(photo.debugSummary)
+        var summary = photo.debugSummary
+        if let result = detected?.result {
+            summary += String(format: " · %d stars (−%d) · glow %.4f", result.starCount,
+                              result.rejections.total, result.relativeSkyGlow)
+        }
+        showDebugSummary(summary)
         if DebugPhotoSaver.isEnabled {
             await DebugPhotoSaver.save(photo)
+            if let detected {
+                await DebugPhotoSaver.saveAnnotated(detected.image, detection: detected.result)
+            }
         }
         #endif
+    }
+
+    /// Off the main thread: linear luminance, hot-pixel-rejecting downscale, then detection.
+    @concurrent
+    private nonisolated static func detectStars(in photo: SkyPhoto) async -> (image: LuminanceImage,
+                                                                              result: StarDetectionResult)? {
+        guard let image = LuminanceImage(cgImage: photo.captured.image,
+                                         maxDimension: SkyReadingTuning.detectionMaxDimension) else { return nil }
+        let result = StarDetector.detect(in: image, exposureSeconds: photo.captured.exposureSeconds,
+                                         iso: photo.captured.iso)
+        return (image, result)
     }
 
     #if DEBUG

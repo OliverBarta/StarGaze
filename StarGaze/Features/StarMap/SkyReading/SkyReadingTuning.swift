@@ -29,6 +29,33 @@ nonisolated enum SkyReadingTuning {
     /// Give up if the photo hasn't arrived in this time (the find is already collected).
     static let captureTimeoutSeconds: Double = 8
 
+    // MARK: Star detection (on the downscaled, linear-luminance photo)
+
+    /// Longest side of the image the detector works on. Downscaling averages noise and keeps
+    /// detection well under a second.
+    static let detectionMaxDimension = 2000
+    /// Background is the median of square cells this many pixels wide, smoothed and interpolated.
+    static let backgroundCellSize = 32
+    /// A star's peak must be at least this many noise sigmas above the background.
+    static let peakSigma: Float = 5
+    /// Pixels belonging to a star must be at least this many sigmas above the background.
+    static let supportSigma: Float = 2.5
+    /// Fewer supporting pixels than this is a hot pixel or a noise spike, not a star.
+    static let minStarPixels = 3
+    /// More supporting pixels than this is a light, a building or the Moon, not a star.
+    static let maxStarPixels = 60
+    /// Peak more than this many times its brightest direct neighbour: a single hot pixel.
+    static let maxPeakToNeighbor: Float = 4
+    /// Blobs with at least `elongationMinPixels` pixels longer than this ratio are edges or wires.
+    static let maxElongation: Float = 3
+    static let elongationMinPixels = 6
+    /// Linear value treated as clipped.
+    static let saturationLevel: Float = 0.98
+    /// More clipped pixels than this in one blob is a light source, not a star.
+    static let maxSaturatedPixels = 6
+    /// Stars this close to the image edge (pixels) are ignored.
+    static let edgeMargin = 8
+
     // MARK: Motion
 
     /// Device-motion sample rate while shooting.
