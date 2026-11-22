@@ -14,9 +14,9 @@ nonisolated enum SkyReadingTuning {
     // MARK: Camera
 
     /// Longest exposure we ask for. If the camera format allows less, we use the format's maximum.
-    static let targetExposureSeconds: Double = 1.0
-    /// ISO as a fraction of the format's maximum. The very top is mostly amplified noise.
-    static let isoFraction: Float = 0.8
+    static let targetExposureSeconds: Double = 0.25
+    /// ISO as a fraction of the format's maximum. Full ISO makes up for the short handheld exposure.
+    static let isoFraction: Float = 1.0
     /// Lens position for "infinity". 1.0 is the far end of the focus range, which is close to
     /// (but not exactly) infinity on every iPhone.
     static let focusLensPosition: Float = 1.0
@@ -66,10 +66,10 @@ nonisolated enum SkyReadingTuning {
     // MARK: Estimate
 
     /// Detected stars → Bortle class, brightest sky first match wins from the top.
-    /// Rough bands for a ~1 s handheld exposure; a phone can't tell Bortle 1–2 apart from 3.
+    /// Rough bands for a ~0.25 s handheld exposure; a phone can't tell Bortle 1–2 apart from 3.
     /// TODO(Part 5): replace with detected vs. expected catalog stars.
     static let bortleForStarCount: [(minStars: Int, bortle: Int)] = [
-        (150, 3), (80, 4), (40, 5), (20, 6), (10, 7), (4, 8),
+        (75, 3), (40, 4), (20, 5), (10, 6), (5, 7), (3, 8),
     ]
     /// Gemini's brightness guess lowers confidence when it's this many classes away.
     static let geminiDisagreementClasses = 2
